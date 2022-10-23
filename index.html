@@ -1,0 +1,63 @@
+<html>
+  <head>
+    <title>lupa</title>
+  </head>
+
+  <body>
+    <b> SRT Host </b>
+    <input type="text" id="srt-host"> <br />
+
+    <b> SRT Port </b>
+    <input type="text" id="srt-port" /> <br />
+
+    <b> SRT Stream ID </b>
+    <input type="text" id="srt-stream-id" /> <br />
+    <button onclick="onConnect()"> Connect </button>
+
+    <video id="video" controls="true" autoplay>
+
+  </body>
+
+  <script>
+    window.onConnect = () => {
+      let srtHost = document.getElementById('srt-host').value
+      let srtPort = document.getElementById('srt-port').value
+      let srtStreamId = document.getElementById('srt-stream-id').value
+
+      let pc = new RTCPeerConnection()
+      pc.addTransceiver('audio', {direction: 'recvonly'})
+      pc.addTransceiver('video', {direction: 'recvonly'})
+
+      pc.ontrack = function (event) {
+        document.getElementById('video').srcObject = event.streams[0];
+      }
+
+      pc.createOffer()
+        .then(offer => {
+          pc.setLocalDescription(offer)
+          return fetch(`/doSignaling`, {
+            method: 'post',
+            headers: {
+              'Accept': 'application/json, text/plain, */*',
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({srtHost, srtPort, srtStreamId, offer})
+          })
+        })
+        .then(res => {
+          if (res.status !== 200) {
+            res.text().then(err => {
+              window.alert(err)
+            })
+            return;
+          }
+
+          return res.json()
+        })
+        .then(res => {
+          pc.setRemoteDescription(res)
+        })
+        .catch(window.alert)
+    };
+  </script>
+</html>
