@@ -6,6 +6,7 @@ require (
 	github.com/asticode/go-astisrt v0.2.0
 	github.com/asticode/go-astits v1.11.0
 	github.com/pion/webrtc/v3 v3.1.47
+	github.com/szatmary/gocaption v0.0.0-20220607192049-fdd59655f0c3
 )
 
 require (

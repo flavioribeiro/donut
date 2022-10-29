@@ -4,20 +4,25 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	_ "embed"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"strconv"
 	"time"
 
+	"donut/h264"
+
 	astisrt "github.com/asticode/go-astisrt/pkg"
 	"github.com/asticode/go-astits"
 	"github.com/pion/webrtc/v3"
 	"github.com/pion/webrtc/v3/pkg/media"
+	gocaption "github.com/szatmary/gocaption"
 )
 
 var (
@@ -66,6 +71,7 @@ func srtToWebRTC(srtConnection *astisrt.Connection, videoTrack *webrtc.TrackLoca
 	}()
 
 	dmx := astits.NewDemuxer(context.Background(), r)
+	eia608 := &gocaption.EIA608Frame{}
 	h264PID := uint16(0)
 	for {
 		d, err := dmx.NextData()
@@ -85,9 +91,41 @@ func srtToWebRTC(srtConnection *astisrt.Connection, videoTrack *webrtc.TrackLoca
 			if err = videoTrack.WriteSample(media.Sample{Data: d.PES.Data, Duration: time.Second / 30}); err != nil {
 				break
 			}
+			parseAndPrint608Captions(eia608, d.PES)
 		}
 	}
 
+}
+
+func parseAndPrint608Captions(eia608Reader *gocaption.EIA608Frame, PES *astits.PESData) {
+	nalus, err := h264.ParseNALUs(PES.Data)
+	if err != nil {
+		panic(err)
+	}
+	for _, nal := range nalus.Units {
+		// ANSI/SCTE 128-1 2020
+		// Note that SEI payload is a SEI payloadType of 4 which contains the itu_t_t35_payload_byte for the terminal provider
+		if nal.UnitType == h264.SupplementalEnhancementInformation && nal.SEI.PayloadType == 4 {
+			// ANSI/SCTE 128-1 2020
+			// Caption, AFD and bar data shall be carried in the SEI raw byte sequence payload (RBSP)
+			// syntax of the video Elementary Stream.
+			buffer := bytes.NewBuffer(nal.RBSPByte)
+			buffer.Next(2) // skip payload type and length
+			test708, err := gocaption.CEA708ToCCData(buffer.Bytes())
+			if err != nil {
+				panic(err)
+			}
+			for _, c := range test708 {
+				ready, err := eia608Reader.Decode(c)
+				if err != nil {
+					panic(err)
+				}
+				if ready {
+					fmt.Printf("captions: %s\n", eia608Reader.String())
+				}
+			}
+		}
+	}
 }
 
 func doSignaling(w http.ResponseWriter, r *http.Request) {
