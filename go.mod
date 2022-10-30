@@ -1,4 +1,4 @@
-module lupa
+module donut
 
 go 1.19
 
