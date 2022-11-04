@@ -115,8 +115,20 @@ func doSignaling(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	offer := struct {
+		SRTHost     string
+		SRTPort     string
+		SRTStreamID string
+		Offer       webrtc.SessionDescription
+	}{"", "", "", webrtc.SessionDescription{}}
+
+	if err = json.NewDecoder(r.Body).Decode(&offer); err != nil {
+		errorToHTTP(w, err)
+		return
+	}
+
 	// Create a video track
-	videoTrack, err := webrtc.NewTrackLocalStaticSample(webrtc.RTPCodecCapability{MimeType: webrtc.MimeTypeH264}, "video", "spongebob")
+	videoTrack, err := webrtc.NewTrackLocalStaticSample(webrtc.RTPCodecCapability{MimeType: webrtc.MimeTypeH264}, "video", offer.SRTStreamID)
 	if err != nil {
 		errorToHTTP(w, err)
 		return
@@ -131,16 +143,6 @@ func doSignaling(w http.ResponseWriter, r *http.Request) {
 	peerConnection.OnICEConnectionStateChange(func(connectionState webrtc.ICEConnectionState) {
 		log.Printf("ICE Connection State has changed: %s\n", connectionState.String())
 	})
-
-	offer := struct {
-		SRTHost, SRTPort, SRTStreamID string
-		Offer                         webrtc.SessionDescription
-	}{"", "", "", webrtc.SessionDescription{}}
-
-	if err = json.NewDecoder(r.Body).Decode(&offer); err != nil {
-		errorToHTTP(w, err)
-		return
-	}
 
 	srtPort, err := assertSignalingCorrect(offer.SRTHost, offer.SRTPort, offer.SRTStreamID)
 	if err != nil {
