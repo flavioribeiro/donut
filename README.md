@@ -1,5 +1,5 @@
 # donut
-donut is a zero setup required SRT+MPEG-TS -> WebRTC Bridge
+donut is a zero setup required SRT+MPEG-TS -> WebRTC Bridge powered by [Pion](http://pion.ly/). 
 
 ## Instructions
 
