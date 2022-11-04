@@ -1,7 +1,6 @@
 package eia608
 
 import (
-	"bytes"
 	"donut/h264"
 
 	"github.com/asticode/go-astits"
@@ -28,13 +27,12 @@ func (r *EIA608Reader) Parse(PES *astits.PESData) (string, error) {
 			// ANSI/SCTE 128-1 2020
 			// Caption, AFD and bar data shall be carried in the SEI raw byte sequence payload (RBSP)
 			// syntax of the video Elementary Stream.
-			buffer := bytes.NewBuffer(nal.RBSPByte)
-			buffer.Next(2) // skip payload type and length
-			test708, err := gocaption.CEA708ToCCData(buffer.Bytes())
+			cea708Data := nal.RBSPByte[2:] // skip payload type and length bytes
+			cea708, err := gocaption.CEA708ToCCData(cea708Data)
 			if err != nil {
 				return "", err
 			}
-			for _, c := range test708 {
+			for _, c := range cea708 {
 				ready, err := r.frame.Decode(c)
 				if err != nil {
 					panic(err)
