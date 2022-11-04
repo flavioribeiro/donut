@@ -5,9 +5,11 @@ package main
 
 import (
 	"context"
+	"donut/eia608"
 	_ "embed"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -66,6 +68,7 @@ func srtToWebRTC(srtConnection *astisrt.Connection, videoTrack *webrtc.TrackLoca
 	}()
 
 	dmx := astits.NewDemuxer(context.Background(), r)
+	eia608Reader := eia608.NewEIA608Reader()
 	h264PID := uint16(0)
 	for {
 		d, err := dmx.NextData()
@@ -84,6 +87,13 @@ func srtToWebRTC(srtConnection *astisrt.Connection, videoTrack *webrtc.TrackLoca
 		if d.PID == h264PID && d.PES != nil {
 			if err = videoTrack.WriteSample(media.Sample{Data: d.PES.Data, Duration: time.Second / 30}); err != nil {
 				break
+			}
+			captions, err := eia608Reader.Parse(d.PES)
+			if err != nil {
+				break
+			}
+			if captions != "" {
+				fmt.Println("Captions: ", captions)
 			}
 		}
 	}
