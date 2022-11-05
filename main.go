@@ -5,7 +5,6 @@ package main
 
 import (
 	"context"
-	"donut/eia608"
 	_ "embed"
 	"encoding/json"
 	"errors"
@@ -15,6 +14,8 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+
+	"github.com/flavioribeiro/donut/eia608"
 
 	astisrt "github.com/asticode/go-astisrt/pkg"
 	"github.com/asticode/go-astits"

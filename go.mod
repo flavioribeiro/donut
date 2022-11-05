@@ -10,7 +10,7 @@ require (
 )
 
 require (
-	github.com/asticode/go-astikit v0.35.0 // indirect
+	github.com/asticode/go-astikit v0.30.0 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/pion/datachannel v1.5.2 // indirect
 	github.com/pion/dtls/v2 v2.1.5 // indirect

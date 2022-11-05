@@ -1,7 +1,7 @@
 package eia608
 
 import (
-	"donut/h264"
+	"github.com/flavioribeiro/donut/h264"
 
 	"github.com/asticode/go-astits"
 	gocaption "github.com/szatmary/gocaption"
