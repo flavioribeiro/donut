@@ -1,4 +1,4 @@
-FROM golang:1.18 AS builder
+FROM golang:1.19 AS builder
 
 ENV WD=/usr/src/app
 
@@ -12,7 +12,7 @@ RUN git clone https://github.com/asticode/go-astisrt.git
 WORKDIR ${WD}/go-astisrt
 RUN make install-srt
 
-FROM golang:1.18
+FROM golang:1.19
 ENV WD=/usr/src/app
 WORKDIR ${WD}
 
