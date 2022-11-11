@@ -20,6 +20,7 @@ RUN mkdir srt-lib
 COPY --from=builder ${WD}/go-astisrt/tmp/ ./srt-lib
 
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y clang
+ENV GOPROXY=direct
 ENV CGO_LDFLAGS="-L${WD}/srt-lib/v1.5.0/lib/"
 ENV CGO_CPPFLAGS="-I${WD}/srt-lib/v1.5.0/include/"
 ENV PKG_CONFIG_PATH="${WD}/srt-lib/v1.5.0/lib/pkgconfig"
@@ -28,4 +29,4 @@ ENV LD_LIBRARY_PATH="${WD}/srt-lib/v1.5.0/lib/"
 COPY . ./donut
 WORKDIR ${WD}/donut
 RUN CC=clang go build .
-ENTRYPOINT ["/usr/src/app/donut/donut"]
+CMD ["/usr/src/app/donut/donut", "--enable-ice-mux=true"]

@@ -8,9 +8,11 @@ import (
 	_ "embed"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"strconv"
 	"time"
@@ -26,6 +28,10 @@ import (
 var (
 	//go:embed index.html
 	indexHTML string
+
+	api *webrtc.API //nolint
+
+	enableICEMux = false
 )
 
 func assertSignalingCorrect(SRTHost, SRTPort, SRTStreamID string) (int, error) {
@@ -102,15 +108,18 @@ func srtToWebRTC(srtConnection *astisrt.Connection, videoTrack *webrtc.TrackLoca
 }
 
 func doSignaling(w http.ResponseWriter, r *http.Request) {
-	peerConnection, err := webrtc.NewPeerConnection(webrtc.Configuration{
-		ICEServers: []webrtc.ICEServer{
+	peerConnectionConfiguration := webrtc.Configuration{}
+	if !enableICEMux {
+		peerConnectionConfiguration.ICEServers = []webrtc.ICEServer{
 			{
 				URLs: []string{
 					"stun:stun4.l.google.com:19302",
 				},
 			},
-		},
-	})
+		}
+	}
+
+	peerConnection, err := api.NewPeerConnection(peerConnectionConfiguration)
 	if err != nil {
 		errorToHTTP(w, err)
 		return
@@ -182,7 +191,7 @@ func doSignaling(w http.ResponseWriter, r *http.Request) {
 		},
 
 		// Callback when the connection is disconnected
-		OnDisconnect: func(c *astisrt.Connection, err error) { panic("Disconnected from SRT") },
+		OnDisconnect: func(c *astisrt.Connection, err error) { log.Fatal("Disconnected from SRT") },
 
 		Host: offer.SRTHost,
 		Port: uint16(srtPort),
@@ -203,6 +212,38 @@ func doSignaling(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	flag.BoolVar(&enableICEMux, "enable-ice-mux", false, "Enable ICE Mux on :8081")
+	flag.Parse()
+
+	mediaEngine := &webrtc.MediaEngine{}
+	settingEngine := webrtc.SettingEngine{}
+	if err := mediaEngine.RegisterDefaultCodecs(); err != nil {
+		log.Fatal(err)
+	}
+
+	if enableICEMux {
+		tcpListener, err := net.ListenTCP("tcp", &net.TCPAddr{
+			IP:   net.IP{0, 0, 0, 0},
+			Port: 8081,
+		})
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		udpListener, err := net.ListenUDP("udp", &net.UDPAddr{
+			IP:   net.IP{0, 0, 0, 0},
+			Port: 8081,
+		})
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		settingEngine.SetNAT1To1IPs([]string{"127.0.0.1"}, webrtc.ICECandidateTypeHost)
+		settingEngine.SetICETCPMux(webrtc.NewICETCPMux(nil, tcpListener, 8))
+		settingEngine.SetICEUDPMux(webrtc.NewICEUDPMux(nil, udpListener))
+	}
+	api = webrtc.NewAPI(webrtc.WithSettingEngine(settingEngine), webrtc.WithMediaEngine(mediaEngine))
+
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		w.Write([]byte(indexHTML))
@@ -210,5 +251,5 @@ func main() {
 	http.HandleFunc("/doSignaling", doSignaling)
 
 	log.Println("Open http://localhost:8080 to access this demo")
-	panic(http.ListenAndServe(":8080", nil))
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }
