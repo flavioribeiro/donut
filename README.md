@@ -5,13 +5,14 @@ donut is a zero setup required SRT+MPEG-TS -> WebRTC Bridge powered by [Pion](ht
 
 ## Instructions
 
-### Install `donut`
+### Install & Run `donut`
 
 ```
-go install github.com/flavioribeiro/donut@latest
+$ docker build -t donut .
+$ docker run -it -p 8080:8080 donut
 ```
-### Run donut
-Execute `donut`. This will be in your `$GOPATH/bin`. The default will be `~/go/bin/donut`
+
+Docker will take care of downloading the dependencies (including the libsrt) and compiling donut for you.
 
 ### Open the Web UI
 Open [http://localhost:8080](http://localhost:8080). You will see three text boxes. Fill in your details for your SRT listener configuration and hit connect.
