@@ -19,6 +19,18 @@
   </body>
 
   <script>
+    const queryString = window.location.search;
+    const urlParams = new URLSearchParams(queryString);
+
+    if (urlParams.has('srtHost')) {
+            document.getElementById('srt-host').value = urlParams.get('srtHost');
+    }
+    if (urlParams.has('srtPort')) {
+            document.getElementById('srt-port').value = urlParams.get('srtPort');
+    }
+    if (urlParams.has('srtStreamId')) {
+            document.getElementById('srt-stream-id').value = urlParams.get('srtStreamId');
+    }
     window.onConnect = () => {
       let srtHost = document.getElementById('srt-host').value
       let srtPort = document.getElementById('srt-port').value
@@ -59,5 +71,10 @@
         })
         .catch(window.alert)
     };
+    if (urlParams.has('autoplay')) {
+      if ((urlParams.has('srtHost')) && (urlParams.has('srtPort')) && (urlParams.has('srtStreamId')) && (urlParams.get('autoplay')==="true")) {
+        onConnect();
+      }
+    }
   </script>
 </html>
