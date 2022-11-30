@@ -7,14 +7,12 @@ import (
 	"context"
 	_ "embed"
 	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"log"
 	"net"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/flavioribeiro/donut/eia608"
@@ -33,24 +31,6 @@ var (
 
 	enableICEMux = false
 )
-
-func assertSignalingCorrect(SRTHost, SRTPort, SRTStreamID string) (int, error) {
-	switch {
-	case SRTHost == "":
-		return 0, errors.New("SRTHost must not be nil")
-	case SRTPort == "":
-		return 0, errors.New("SRTPort must not be empty")
-	case SRTStreamID == "":
-		return 0, errors.New("SRTStreamID must not be empty")
-	}
-
-	return strconv.Atoi(SRTPort)
-}
-
-func errorToHTTP(w http.ResponseWriter, err error) {
-	w.WriteHeader(500)
-	w.Write([]byte(err.Error()))
-}
 
 func srtToWebRTC(srtConnection *astisrt.Connection, videoTrack *webrtc.TrackLocalStaticSample) {
 	r, w := io.Pipe()
@@ -108,6 +88,11 @@ func srtToWebRTC(srtConnection *astisrt.Connection, videoTrack *webrtc.TrackLoca
 }
 
 func doSignaling(w http.ResponseWriter, r *http.Request) {
+	setCors(w, r)
+	if r.Method != http.MethodPost {
+		return
+	}
+
 	peerConnectionConfiguration := webrtc.Configuration{}
 	if !enableICEMux {
 		peerConnectionConfiguration.ICEServers = []webrtc.ICEServer{
