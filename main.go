@@ -8,7 +8,6 @@ import (
 	_ "embed"
 	"encoding/json"
 	"flag"
-	"fmt"
 	"io"
 	"log"
 	"net"
@@ -32,7 +31,7 @@ var (
 	enableICEMux = false
 )
 
-func srtToWebRTC(srtConnection *astisrt.Connection, videoTrack *webrtc.TrackLocalStaticSample) {
+func srtToWebRTC(srtConnection *astisrt.Connection, videoTrack *webrtc.TrackLocalStaticSample, metadataTrack *webrtc.DataChannel) {
 	r, w := io.Pipe()
 	defer r.Close()
 	defer w.Close()
@@ -80,7 +79,7 @@ func srtToWebRTC(srtConnection *astisrt.Connection, videoTrack *webrtc.TrackLoca
 				break
 			}
 			if captions != "" {
-				fmt.Println("Captions: ", captions)
+				metadataTrack.SendText(captions)
 			}
 		}
 	}
@@ -131,6 +130,12 @@ func doSignaling(w http.ResponseWriter, r *http.Request) {
 	if _, err := peerConnection.AddTrack(videoTrack); err != nil {
 		errorToHTTP(w, err)
 		return
+	}
+
+	// Create data channel for metadata transmission
+	metadataSender, err := peerConnection.CreateDataChannel("metadata", nil)
+	if err != nil {
+		errorToHTTP(w, err)
 	}
 
 	// Set the handler for ICE connection state
@@ -187,7 +192,7 @@ func doSignaling(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Println("Connected to SRT")
 
-	go srtToWebRTC(srtConnection, videoTrack)
+	go srtToWebRTC(srtConnection, videoTrack, metadataSender)
 
 	w.Header().Set("Content-Type", "application/json")
 	if _, err := w.Write(response); err != nil {
