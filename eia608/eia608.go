@@ -15,6 +15,11 @@ func NewEIA608Reader() (r *EIA608Reader) {
 	return &EIA608Reader{}
 }
 
+type Cue struct {
+	StartTime int64
+	Text      string
+}
+
 func (r *EIA608Reader) Parse(PES *astits.PESData) (string, error) {
 	nalus, err := h264.ParseNALUs(PES.Data)
 	if err != nil {

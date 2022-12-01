@@ -79,11 +79,27 @@ func srtToWebRTC(srtConnection *astisrt.Connection, videoTrack *webrtc.TrackLoca
 				break
 			}
 			if captions != "" {
-				metadataTrack.SendText(captions)
+				captionsMsg, err := buildCaptionsMessage(d.PES.Header.OptionalHeader.PTS, captions)
+				if err != nil {
+					break
+				}
+				metadataTrack.SendText(captionsMsg)
 			}
 		}
 	}
 
+}
+
+func buildCaptionsMessage(pts *astits.ClockReference, captions string) (string, error) {
+	cue := eia608.Cue{
+		StartTime: pts.Base,
+		Text:      captions,
+	}
+	c, err := json.Marshal(cue)
+	if err != nil {
+		return "", err
+	}
+	return string(c), nil
 }
 
 func doSignaling(w http.ResponseWriter, r *http.Request) {
@@ -173,7 +189,7 @@ func doSignaling(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Println("Connecting to SRT")
+	log.Println("Connecting to SRT ", offer.SRTHost, srtPort, offer.SRTStreamID)
 	srtConnection, err := astisrt.Dial(astisrt.DialOptions{
 		ConnectionOptions: []astisrt.ConnectionOption{
 			astisrt.WithLatency(300),
