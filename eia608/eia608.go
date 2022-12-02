@@ -1,6 +1,8 @@
 package eia608
 
 import (
+	"encoding/json"
+
 	"github.com/flavioribeiro/donut/h264"
 
 	"github.com/asticode/go-astits"
@@ -11,13 +13,13 @@ type EIA608Reader struct {
 	frame gocaption.EIA608Frame
 }
 
-func NewEIA608Reader() (r *EIA608Reader) {
-	return &EIA608Reader{}
-}
-
 type Cue struct {
 	StartTime int64
 	Text      string
+}
+
+func NewEIA608Reader() (r *EIA608Reader) {
+	return &EIA608Reader{}
 }
 
 func (r *EIA608Reader) Parse(PES *astits.PESData) (string, error) {
@@ -49,4 +51,16 @@ func (r *EIA608Reader) Parse(PES *astits.PESData) (string, error) {
 		}
 	}
 	return "", nil
+}
+
+func BuildCaptionsMessage(pts *astits.ClockReference, captions string) (string, error) {
+	cue := Cue{
+		StartTime: pts.Base,
+		Text:      captions,
+	}
+	c, err := json.Marshal(cue)
+	if err != nil {
+		return "", err
+	}
+	return string(c), nil
 }

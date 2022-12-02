@@ -79,7 +79,7 @@ func srtToWebRTC(srtConnection *astisrt.Connection, videoTrack *webrtc.TrackLoca
 				break
 			}
 			if captions != "" {
-				captionsMsg, err := buildCaptionsMessage(d.PES.Header.OptionalHeader.PTS, captions)
+				captionsMsg, err := eia608.BuildCaptionsMessage(d.PES.Header.OptionalHeader.PTS, captions)
 				if err != nil {
 					break
 				}
@@ -88,18 +88,6 @@ func srtToWebRTC(srtConnection *astisrt.Connection, videoTrack *webrtc.TrackLoca
 		}
 	}
 
-}
-
-func buildCaptionsMessage(pts *astits.ClockReference, captions string) (string, error) {
-	cue := eia608.Cue{
-		StartTime: pts.Base,
-		Text:      captions,
-	}
-	c, err := json.Marshal(cue)
-	if err != nil {
-		return "", err
-	}
-	return string(c), nil
 }
 
 func doSignaling(w http.ResponseWriter, r *http.Request) {
