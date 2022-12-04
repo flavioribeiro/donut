@@ -14,6 +14,7 @@ type EIA608Reader struct {
 }
 
 type Cue struct {
+	Type      string
 	StartTime int64
 	Text      string
 }
@@ -57,6 +58,7 @@ func BuildCaptionsMessage(pts *astits.ClockReference, captions string) (string, 
 	cue := Cue{
 		StartTime: pts.Base,
 		Text:      captions,
+		Type:      "captions",
 	}
 	c, err := json.Marshal(cue)
 	if err != nil {
