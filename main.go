@@ -8,6 +8,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"flag"
+	"fmt"
 	"io"
 	"log"
 	"net"
@@ -64,8 +65,30 @@ func srtToWebRTC(srtConnection *astisrt.Connection, videoTrack *webrtc.TrackLoca
 
 		if d.PMT != nil {
 			for _, es := range d.PMT.ElementaryStreams {
+				msg, _ := json.Marshal(struct {
+					Type    string
+					Message string
+				}{
+					Type:    "metadata",
+					Message: es.StreamType.String(),
+				})
+				metadataTrack.SendText(string(msg))
 				if es.StreamType == astits.StreamTypeH264Video {
 					h264PID = es.ElementaryPID
+				}
+			}
+
+			for _, d := range d.PMT.ProgramDescriptors {
+				if d.MaximumBitrate != nil {
+					bitrateInMbitsPerSecond := float32(d.MaximumBitrate.Bitrate) / float32(125000)
+					msg, _ := json.Marshal(struct {
+						Type    string
+						Message string
+					}{
+						Type:    "metadata",
+						Message: fmt.Sprintf("Bitrate %.2fMbps", bitrateInMbitsPerSecond),
+					})
+					metadataTrack.SendText(string(msg))
 				}
 			}
 		}
