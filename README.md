@@ -13,9 +13,36 @@ $ go install github.com/flavioribeiro/donut@latest
 ```
 Once installed, execute `donut`. This will be in your `$GOPATH/bin`. The default will be `~/go/bin/donut`
 
-#### Troubleshooting locally
 
-##### Mac
+### Run using Docker
+
+Alternatively, you can build a docker image. Docker will take care of downloading the dependencies (including the libsrt) and compiling donut for you.
+
+```
+$ docker build -t donut .
+$ docker run -it -p 8080:8080 donut
+```
+
+### Open the Web UI
+Open [http://localhost:8080](http://localhost:8080). You will see three text boxes. Fill in your details for your SRT listener configuration and hit connect.
+
+### Install & Run using Docker Compose
+
+Docker-compose can simulate an SRT live transmission and run the donut in separate containers.
+
+```
+$ make run
+```
+
+#### Open the Web UI
+Open [http://localhost:8080](http://localhost:8080). You will see three text boxes. Fill in with the SRT listener configuration and hit connect.
+
+![donut docker-compose setup](/imgs/docker-compose-donut-setup.webp "donut docker-compose setup")
+
+
+### Troubleshooting locally
+
+#### Mac
 
 If you're facing issues while trying to run it locally, such as:
 
@@ -66,29 +93,3 @@ ffmpeg -hide_banner -loglevel verbose \
     -b:v 1400k -bufsize 2800k -x264opts keyint=30:min-keyint=30:scenecut=-1 \
     -c:a aac -b:a 128k -f mpegts 'srt://0.0.0.0:40052?mode=listener&latency=400000'
 ```
-
-### Run using Docker
-
-Alternatively, you can build a docker image. Docker will take care of downloading the dependencies (including the libsrt) and compiling donut for you.
-
-```
-$ docker build -t donut .
-$ docker run -it -p 8080:8080 donut
-```
-
-### Open the Web UI
-Open [http://localhost:8080](http://localhost:8080). You will see three text boxes. Fill in your details for your SRT listener configuration and hit connect.
-
-### Install & Run using Docker Compose
-
-Docker-compose can simulate an SRT live transmission and run the donut in separate containers.
-
-```
-$ make run
-```
-
-#### Open the Web UI
-Open [http://localhost:8080](http://localhost:8080). You will see three text boxes. Fill in with the SRT listener configuration and hit connect.
-
-![donut docker-compose setup](/imgs/docker-compose-donut-setup.webp "donut docker-compose setup")
-
