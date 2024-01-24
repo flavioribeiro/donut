@@ -1,0 +1,31 @@
+version: '2.1'
+
+services:
+  app:
+    build:
+      context: .
+    working_dir: "/app"
+    volumes:
+      - "./:/app/"
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+      - "8081:8081/udp"
+
+  origin: # simulating an srt origin live transmission
+    image: jrottenberg/ffmpeg:4.4-alpine
+    entrypoint: sh
+    command: "/scripts/ffmpeg_srt_live_listener.sh"
+    volumes:
+      - "./:/scripts"
+    environment:
+      - SRT_LISTENING_PORT=40052
+      - SRT_LISTENING_HOST=0.0.0.0
+      - SRT_LISTENING_LATENCY_US=400000
+    ports:
+      - "40052:40052/udp"
+    depends_on:
+      - app
+    links:
+      - app
+
