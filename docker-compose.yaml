@@ -17,7 +17,7 @@ services:
     entrypoint: sh
     command: "/scripts/ffmpeg_srt_live_listener.sh"
     volumes:
-      - "./:/scripts"
+      - "./scripts:/scripts"
     environment:
       - SRT_LISTENING_PORT=40052
       - SRT_LISTENING_HOST=0.0.0.0
