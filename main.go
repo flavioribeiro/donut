@@ -29,24 +29,31 @@ func main() {
 	c.EnableICEMux = enableICEMux
 
 	fx.New(
-		fx.Provide(func() *entity.Config {
-			return &c
-		}),
+		// Server entry point
 		fx.Provide(handlers.NewHTTPServer),
 
+		// HTTP handlers
 		fx.Provide(handlers.NewSignalingHandler),
 		fx.Provide(handlers.NewIndexHandler),
 
+		// HTTP router
 		fx.Provide(handlers.NewServeMux),
 
+		// ICE mux servers
 		fx.Provide(handlers.NewTCPICEServer),
 		fx.Provide(handlers.NewUDPICEServer),
+
+		// WebRTC components
 		fx.Provide(handlers.NewWebRTCSettingsEngine),
 		fx.Provide(handlers.NewWebRTCMediaEngine),
 
+		// Logging, Config
 		fx.Provide(zap.NewProduction),
+		fx.Provide(func() *entity.Config {
+			return &c
+		}),
 
-		// just to enforce the lifecycle by using NewHTTPServer
+		// Forcing the lifecycle initiation with NewHTTPServer
 		fx.Invoke(func(*http.Server) {}),
 	).Run()
 }
