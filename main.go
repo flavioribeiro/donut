@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/flavioribeiro/donut/eia608"
+	"github.com/flavioribeiro/donut/internal/entity"
 
 	astisrt "github.com/asticode/go-astisrt/pkg"
 	"github.com/asticode/go-astits"
@@ -65,11 +66,8 @@ func srtToWebRTC(srtConnection *astisrt.Connection, videoTrack *webrtc.TrackLoca
 
 		if d.PMT != nil {
 			for _, es := range d.PMT.ElementaryStreams {
-				msg, _ := json.Marshal(struct {
-					Type    string
-					Message string
-				}{
-					Type:    "metadata",
+				msg, _ := json.Marshal(entity.Message{
+					Type:    entity.MessageTypeMetadata,
 					Message: es.StreamType.String(),
 				})
 				metadataTrack.SendText(string(msg))
@@ -81,11 +79,8 @@ func srtToWebRTC(srtConnection *astisrt.Connection, videoTrack *webrtc.TrackLoca
 			for _, d := range d.PMT.ProgramDescriptors {
 				if d.MaximumBitrate != nil {
 					bitrateInMbitsPerSecond := float32(d.MaximumBitrate.Bitrate) / float32(125000)
-					msg, _ := json.Marshal(struct {
-						Type    string
-						Message string
-					}{
-						Type:    "metadata",
+					msg, _ := json.Marshal(entity.Message{
+						Type:    entity.MessageTypeMetadata,
 						Message: fmt.Sprintf("Bitrate %.2fMbps", bitrateInMbitsPerSecond),
 					})
 					metadataTrack.SendText(string(msg))
@@ -136,12 +131,7 @@ func doSignaling(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	offer := struct {
-		SRTHost     string
-		SRTPort     string
-		SRTStreamID string
-		Offer       webrtc.SessionDescription
-	}{"", "", "", webrtc.SessionDescription{}}
+	offer := entity.ParamsOffer{}
 
 	if err = json.NewDecoder(r.Body).Decode(&offer); err != nil {
 		errorToHTTP(w, err)
@@ -171,7 +161,7 @@ func doSignaling(w http.ResponseWriter, r *http.Request) {
 		log.Printf("ICE Connection State has changed: %s\n", connectionState.String())
 	})
 
-	srtPort, err := assertSignalingCorrect(offer.SRTHost, offer.SRTPort, offer.SRTStreamID)
+	err = offer.Valid()
 	if err != nil {
 		errorToHTTP(w, err)
 		return
@@ -200,7 +190,7 @@ func doSignaling(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Println("Connecting to SRT ", offer.SRTHost, srtPort, offer.SRTStreamID)
+	log.Println("Connecting to SRT ", offer)
 	srtConnection, err := astisrt.Dial(astisrt.DialOptions{
 		ConnectionOptions: []astisrt.ConnectionOption{
 			astisrt.WithLatency(300),
@@ -211,7 +201,7 @@ func doSignaling(w http.ResponseWriter, r *http.Request) {
 		OnDisconnect: func(c *astisrt.Connection, err error) { log.Fatal("Disconnected from SRT") },
 
 		Host: offer.SRTHost,
-		Port: uint16(srtPort),
+		Port: offer.SRTPort,
 	})
 	if err != nil {
 		errorToHTTP(w, err)
