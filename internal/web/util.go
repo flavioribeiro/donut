@@ -1,15 +1,12 @@
-package main
+package handlers
 
-import (
-	"net/http"
-)
+import "net/http"
 
-func errorToHTTP(w http.ResponseWriter, err error) {
-	w.WriteHeader(500)
-	w.Write([]byte(err.Error()))
+func ErrorToHTTP(w http.ResponseWriter, err error) {
+	http.Error(w, err.Error(), http.StatusInternalServerError)
 }
 
-func setCors(w http.ResponseWriter, r *http.Request) {
+func SetCORS(w http.ResponseWriter, r *http.Request) {
 	if origin := r.Header.Get("Origin"); origin != "" {
 		allowedHeaders := "Accept, Content-Type, Content-Length, Accept-Encoding, Authorization,X-CSRF-Token"
 		w.Header().Set("Access-Control-Allow-Origin", "*")

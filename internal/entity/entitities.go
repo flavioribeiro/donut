@@ -1,7 +1,6 @@
 package entity
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/pion/webrtc/v3"
@@ -18,19 +17,19 @@ type ParamsOffer struct {
 
 func (p *ParamsOffer) Valid() error {
 	if p == nil {
-		return errors.New("ParamsOffer must not be nil")
+		return ErrMissingParamsOffer
 	}
 
 	if p.SRTHost == "" {
-		return errors.New("SRTHost must not be nil")
+		return ErrMissingSRTHost
 	}
 
 	if p.SRTPort == 0 {
-		return errors.New("SRTPort must be valid")
+		return ErrMissingSRTPort
 	}
 
 	if p.SRTStreamID == "" {
-		return errors.New("SRTStreamID must not be empty")
+		return ErrMissingSRTStreamID
 	}
 
 	return nil
@@ -52,4 +51,19 @@ const (
 type Message struct {
 	Type    MessageType
 	Message string
+}
+
+type Config struct {
+	HTTPPort int32  `required:"true" default:"8080"`
+	HTTPHost string `required:"true" default:"0.0.0.0"`
+
+	TCPICEPort         int      `required:"true" default:"8081"`
+	UDPICEPort         int      `required:"true" default:"8081"`
+	ICEReadBufferSize  int      `required:"true" default:"8"`
+	ICEExternalIPsDNAT []string `required:"true" default:"127.0.0.1"`
+	EnableICEMux       bool     `require:"true" default:"false"`
+	StunServers        []string `required:"true" default:"stun:stun4.l.google.com:19302"`
+
+	SRTConnectionLatencyMS int32 `required:"true" default:"300"`
+	SRTReadBufferSizeBytes int   `required:"true" default:"1316"`
 }
