@@ -17,7 +17,7 @@ func NewSRTController(c *entity.Config) *SRTController {
 	}
 }
 
-func (c *SRTController) Connect(offer *entity.ParamsOffer) error {
+func (c *SRTController) Connect(offer *entity.RequestParams) error {
 	if err := offer.Valid(); err != nil {
 		return err
 	}
@@ -30,7 +30,7 @@ func (c *SRTController) Connect(offer *entity.ParamsOffer) error {
 	return nil
 }
 
-func (c *SRTController) srtConnect(offer *entity.ParamsOffer) (*astisrt.Connection, error) {
+func (c *SRTController) srtConnect(offer *entity.RequestParams) (*astisrt.Connection, error) {
 	srtConnection, err := astisrt.Dial(astisrt.DialOptions{
 		ConnectionOptions: []astisrt.ConnectionOption{
 			astisrt.WithLatency(c.c.SRTConnectionLatencyMS),

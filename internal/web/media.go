@@ -22,7 +22,7 @@ func (m *MediaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	offer := entity.ParamsOffer{}
+	offer := entity.RequestParams{}
 	if err := json.NewDecoder(r.Body).Decode(&offer); err != nil {
 		ErrorToHTTP(w, err)
 		return

@@ -12,14 +12,14 @@ const (
 
 type Media struct{}
 
-type ParamsOffer struct {
+type RequestParams struct {
 	SRTHost     string
 	SRTPort     uint16 `json:",string"`
 	SRTStreamID string
 	Offer       webrtc.SessionDescription
 }
 
-func (p *ParamsOffer) Valid() error {
+func (p *RequestParams) Valid() error {
 	if p == nil {
 		return ErrMissingParamsOffer
 	}
@@ -39,7 +39,7 @@ func (p *ParamsOffer) Valid() error {
 	return nil
 }
 
-func (p *ParamsOffer) String() string {
+func (p *RequestParams) String() string {
 	if p == nil {
 		return ""
 	}
