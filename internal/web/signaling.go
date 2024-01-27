@@ -43,12 +43,12 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	browerOffer := entity.ParamsOffer{}
-	if err := json.NewDecoder(r.Body).Decode(&browerOffer); err != nil {
+	browserOffer := entity.ParamsOffer{}
+	if err := json.NewDecoder(r.Body).Decode(&browserOffer); err != nil {
 		ErrorToHTTP(w, err)
 		return
 	}
-	if err := browerOffer.Valid(); err != nil {
+	if err := browserOffer.Valid(); err != nil {
 		ErrorToHTTP(w, err)
 		return
 	}
@@ -63,7 +63,7 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	videoTrack, err := h.webRTCController.CreateTrack(
 		entity.Track{
 			Type: entity.H264,
-		}, "video", browerOffer.SRTStreamID,
+		}, "video", browserOffer.SRTStreamID,
 	)
 	if err != nil {
 		ErrorToHTTP(w, err)
@@ -75,7 +75,7 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		ErrorToHTTP(w, err)
 	}
 
-	if err = h.webRTCController.SetRemoteDescription(browerOffer.Offer); err != nil {
+	if err = h.webRTCController.SetRemoteDescription(browserOffer.Offer); err != nil {
 		ErrorToHTTP(w, err)
 		return
 	}
@@ -93,12 +93,12 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.l.Sugar().Infow("Connecting to SRT ",
-		"offer", browerOffer,
+		"offer", browserOffer,
 	)
 	srtConnection, err := astisrt.Dial(astisrt.DialOptions{
 		ConnectionOptions: []astisrt.ConnectionOption{
 			astisrt.WithLatency(h.c.SRTConnectionLatencyMS),
-			astisrt.WithStreamid(browerOffer.SRTStreamID),
+			astisrt.WithStreamid(browserOffer.SRTStreamID),
 		},
 
 		OnDisconnect: func(c *astisrt.Connection, err error) {
@@ -107,8 +107,8 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			)
 		},
 
-		Host: browerOffer.SRTHost,
-		Port: browerOffer.SRTPort,
+		Host: browserOffer.SRTHost,
+		Port: browserOffer.SRTPort,
 	})
 	if err != nil {
 		ErrorToHTTP(w, err)
