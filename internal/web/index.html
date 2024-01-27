@@ -7,13 +7,13 @@
 
 <body>
   <b> SRT Host </b>
-  <input type="text" id="srt-host"> <br />
+  <input type="text" id="srt-host" value="origin"> <br />
 
   <b> SRT Port </b>
-  <input type="text" id="srt-port" /> <br />
+  <input type="text" id="srt-port" value="40052"/> <br />
 
   <b> SRT Stream ID </b>
-  <input type="text" id="srt-stream-id" /> <br />
+  <input type="text" id="srt-stream-id" value="stream-id" /> <br />
   <button onclick="onConnect()"> Connect </button>
 
   <donut-video server="http://localhost:8080" controls />
