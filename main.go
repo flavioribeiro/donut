@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 
+	donutwebrtc "github.com/flavioribeiro/donut/internal/controller/webrtc"
 	"github.com/flavioribeiro/donut/internal/entity"
 	handlers "github.com/flavioribeiro/donut/internal/web"
 
@@ -40,12 +41,11 @@ func main() {
 		fx.Provide(handlers.NewServeMux),
 
 		// ICE mux servers
-		fx.Provide(handlers.NewTCPICEServer),
-		fx.Provide(handlers.NewUDPICEServer),
+		fx.Provide(donutwebrtc.NewTCPICEServer),
+		fx.Provide(donutwebrtc.NewUDPICEServer),
 
-		// WebRTC components
-		fx.Provide(handlers.NewWebRTCSettingsEngine),
-		fx.Provide(handlers.NewWebRTCMediaEngine),
+		// WebRTC controller
+		fx.Provide(donutwebrtc.NewWebRTCController),
 
 		// Logging, Config
 		fx.Provide(zap.NewProduction),

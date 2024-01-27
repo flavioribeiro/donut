@@ -6,6 +6,10 @@ import (
 	"github.com/pion/webrtc/v3"
 )
 
+const (
+	MetadataChannelID string = "metadata"
+)
+
 type Media struct{}
 
 type ParamsOffer struct {
@@ -51,6 +55,16 @@ const (
 type Message struct {
 	Type    MessageType
 	Message string
+}
+
+type TrackType string
+
+const (
+	H264 TrackType = "h264"
+)
+
+type Track struct {
+	Type TrackType
 }
 
 type Config struct {

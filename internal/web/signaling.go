@@ -11,6 +11,7 @@ import (
 	astisrt "github.com/asticode/go-astisrt/pkg"
 	"github.com/asticode/go-astits"
 	"github.com/flavioribeiro/donut/eia608"
+	donutwebrtc "github.com/flavioribeiro/donut/internal/controller/webrtc"
 	"github.com/flavioribeiro/donut/internal/entity"
 	"github.com/pion/webrtc/v3"
 	"github.com/pion/webrtc/v3/pkg/media"
@@ -18,18 +19,20 @@ import (
 )
 
 type SignalingHandler struct {
-	c             *entity.Config
-	l             *zap.Logger
-	webrtcSetting *webrtc.SettingEngine
-	mediaEngine   *webrtc.MediaEngine
+	c                *entity.Config
+	l                *zap.Logger
+	webRTCController *donutwebrtc.WebRTCController
 }
 
-func NewSignalingHandler(c *entity.Config, log *zap.Logger, webrtcSetting *webrtc.SettingEngine, mediaEngine *webrtc.MediaEngine) *SignalingHandler {
+func NewSignalingHandler(
+	c *entity.Config,
+	log *zap.Logger,
+	webRTCController *donutwebrtc.WebRTCController,
+) *SignalingHandler {
 	return &SignalingHandler{
-		c:             c,
-		l:             log,
-		webrtcSetting: webrtcSetting,
-		mediaEngine:   mediaEngine,
+		c:                c,
+		l:                log,
+		webRTCController: webRTCController,
 	}
 }
 
@@ -40,97 +43,62 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	peerConnectionConfiguration := webrtc.Configuration{}
-	if !h.c.EnableICEMux {
-		peerConnectionConfiguration.ICEServers = []webrtc.ICEServer{
-			{
-				URLs: h.c.StunServers,
-			},
-		}
+	browerOffer := entity.ParamsOffer{}
+	if err := json.NewDecoder(r.Body).Decode(&browerOffer); err != nil {
+		ErrorToHTTP(w, err)
+		return
 	}
-
-	api := webrtc.NewAPI(
-		webrtc.WithSettingEngine(*h.webrtcSetting),
-		webrtc.WithMediaEngine(h.mediaEngine),
-	)
-
-	peerConnection, err := api.NewPeerConnection(peerConnectionConfiguration)
-	if err != nil {
+	if err := browerOffer.Valid(); err != nil {
 		ErrorToHTTP(w, err)
 		return
 	}
 
-	offer := entity.ParamsOffer{}
-	if err := json.NewDecoder(r.Body).Decode(&offer); err != nil {
+	if err := h.webRTCController.SetupPeerConnection(); err != nil {
 		ErrorToHTTP(w, err)
 		return
 	}
 
+	// TODO: create tracks according with SRT available streams
 	// Create a video track
-	videoTrack, err := webrtc.NewTrackLocalStaticSample(
-		webrtc.RTPCodecCapability{MimeType: webrtc.MimeTypeH264},
-		"video", offer.SRTStreamID,
+	videoTrack, err := h.webRTCController.CreateTrack(
+		entity.Track{
+			Type: entity.H264,
+		}, "video", browerOffer.SRTStreamID,
 	)
 	if err != nil {
 		ErrorToHTTP(w, err)
 		return
 	}
-	if _, err := peerConnection.AddTrack(videoTrack); err != nil {
-		ErrorToHTTP(w, err)
-		return
-	}
 
-	// Create data channel for metadata transmission
-	metadataSender, err := peerConnection.CreateDataChannel("metadata", nil)
+	metadataSender, err := h.webRTCController.CreateDataChannel(entity.MetadataChannelID)
 	if err != nil {
 		ErrorToHTTP(w, err)
 	}
 
-	// Set the handler for ICE connection state
-	// This will notify you when the peer has connected/disconnected
-	peerConnection.OnICEConnectionStateChange(func(connectionState webrtc.ICEConnectionState) {
-		h.l.Sugar().Infow("ICE Connection State has changed",
-			"status", connectionState.String(),
-		)
-	})
+	if err = h.webRTCController.SetRemoteDescription(browerOffer.Offer); err != nil {
+		ErrorToHTTP(w, err)
+		return
+	}
 
-	err = offer.Valid()
+	localDescription, err := h.webRTCController.GatheringWebRTC()
 	if err != nil {
 		ErrorToHTTP(w, err)
 		return
 	}
-	if err = peerConnection.SetRemoteDescription(offer.Offer); err != nil {
-		ErrorToHTTP(w, err)
-		return
-	}
 
-	h.l.Sugar().Infow("Gathering WebRTC Candidates")
-	gatherComplete := webrtc.GatheringCompletePromise(peerConnection)
-	answer, err := peerConnection.CreateAnswer(nil)
-	if err != nil {
-		ErrorToHTTP(w, err)
-		return
-	} else if err = peerConnection.SetLocalDescription(answer); err != nil {
-		ErrorToHTTP(w, err)
-		return
-	}
-	<-gatherComplete
-
-	h.l.Sugar().Infow("Gathering WebRTC Candidates Complete")
-
-	response, err := json.Marshal(*peerConnection.LocalDescription())
+	response, err := json.Marshal(*localDescription)
 	if err != nil {
 		ErrorToHTTP(w, err)
 		return
 	}
 
 	h.l.Sugar().Infow("Connecting to SRT ",
-		"offer", offer,
+		"offer", browerOffer,
 	)
 	srtConnection, err := astisrt.Dial(astisrt.DialOptions{
 		ConnectionOptions: []astisrt.ConnectionOption{
 			astisrt.WithLatency(h.c.SRTConnectionLatencyMS),
-			astisrt.WithStreamid(offer.SRTStreamID),
+			astisrt.WithStreamid(browerOffer.SRTStreamID),
 		},
 
 		OnDisconnect: func(c *astisrt.Connection, err error) {
@@ -139,8 +107,8 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			)
 		},
 
-		Host: offer.SRTHost,
-		Port: offer.SRTPort,
+		Host: browerOffer.SRTHost,
+		Port: browerOffer.SRTPort,
 	})
 	if err != nil {
 		ErrorToHTTP(w, err)
