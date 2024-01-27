@@ -38,3 +38,7 @@ $ make run
 Open [http://localhost:8080](http://localhost:8080). You will see three text boxes. Fill in with the SRT listener configuration and hit connect.
 
 ![donut docker-compose setup](/.github/docker-compose-donut-setup.webp "donut docker-compose setup")
+
+### FAQ
+
+Please check the [FAQ](/FAQ.md) if you're facing any trouble.
