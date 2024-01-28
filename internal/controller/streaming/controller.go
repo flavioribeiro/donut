@@ -36,29 +36,8 @@ func (c *StreamingController) Stream(_ context.Context, srtConnection *astisrt.C
 
 	c.l.Sugar().Infow("start streaming")
 
-	// reading from SRT writing into pipe writer
-	go func() {
-		defer srtConnection.Close()
-		// TODO: pick the proper transport? is it possible to get rtp instead?
-		inboundMpegTsPacket := make([]byte, c.c.SRTReadBufferSizeBytes) // SRT Read Size
-
-		for {
-			n, err := srtConnection.Read(inboundMpegTsPacket)
-			if err != nil {
-				c.l.Sugar().Errorw("str conn failed to read mpeg ts",
-					"error", err,
-				)
-				break
-			}
-
-			if _, err := w.Write(inboundMpegTsPacket[:n]); err != nil {
-				c.l.Sugar().Errorw("failed to write mpeg ts in the pipe",
-					"error", err,
-				)
-				break
-			}
-		}
-	}()
+	// TODO: pick the proper transport? is it possible to get rtp instead?
+	go c.readFromSRTIntoWriterPipe(srtConnection, w)
 
 	dmx := astits.NewDemuxer(context.Background(), r)
 	eia608Reader := eia608.NewEIA608Reader()
@@ -122,6 +101,29 @@ func (c *StreamingController) Stream(_ context.Context, srtConnection *astisrt.C
 				}
 				metadataTrack.SendText(captionsMsg)
 			}
+		}
+	}
+}
+
+func (c *StreamingController) readFromSRTIntoWriterPipe(srtConnection *astisrt.Connection, w *io.PipeWriter) {
+	defer srtConnection.Close()
+
+	inboundMpegTsPacket := make([]byte, c.c.SRTReadBufferSizeBytes)
+
+	for {
+		n, err := srtConnection.Read(inboundMpegTsPacket)
+		if err != nil {
+			c.l.Sugar().Errorw("str conn failed to read mpeg ts",
+				"error", err,
+			)
+			break
+		}
+
+		if _, err := w.Write(inboundMpegTsPacket[:n]); err != nil {
+			c.l.Sugar().Errorw("failed to write mpeg ts in the pipe",
+				"error", err,
+			)
+			break
 		}
 	}
 }
