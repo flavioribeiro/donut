@@ -15,6 +15,7 @@ func NewServeMux(
 
 	mux.Handle("/", index)
 	mux.Handle("/doSignaling", setCors(signaling))
+	mux.Handle("/demo", http.FileServer(http.Dir("./demo")))
 
 	return mux
 }
