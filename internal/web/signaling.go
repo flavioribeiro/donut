@@ -1,38 +1,37 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
-	"fmt"
-	"io"
 	"net/http"
-	"time"
 
-	astisrt "github.com/asticode/go-astisrt/pkg"
-	"github.com/asticode/go-astits"
-	"github.com/flavioribeiro/donut/eia608"
+	donutsrt "github.com/flavioribeiro/donut/internal/controller/srt"
+	donutstreaming "github.com/flavioribeiro/donut/internal/controller/streaming"
 	donutwebrtc "github.com/flavioribeiro/donut/internal/controller/webrtc"
 	"github.com/flavioribeiro/donut/internal/entity"
-	"github.com/pion/webrtc/v3"
-	"github.com/pion/webrtc/v3/pkg/media"
 	"go.uber.org/zap"
 )
 
 type SignalingHandler struct {
-	c                *entity.Config
-	l                *zap.Logger
-	webRTCController *donutwebrtc.WebRTCController
+	c                   *entity.Config
+	l                   *zap.Logger
+	webRTCController    *donutwebrtc.WebRTCController
+	srtController       *donutsrt.SRTController
+	streamingController *donutstreaming.StreamingController
 }
 
 func NewSignalingHandler(
 	c *entity.Config,
 	log *zap.Logger,
 	webRTCController *donutwebrtc.WebRTCController,
+	srtController *donutsrt.SRTController,
+	streamingController *donutstreaming.StreamingController,
 ) *SignalingHandler {
 	return &SignalingHandler{
-		c:                c,
-		l:                log,
-		webRTCController: webRTCController,
+		c:                   c,
+		l:                   log,
+		webRTCController:    webRTCController,
+		srtController:       srtController,
+		streamingController: streamingController,
 	}
 }
 
@@ -86,116 +85,23 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response, err := json.Marshal(*localDescription)
+	localOfferDescription, err := json.Marshal(*localDescription)
 	if err != nil {
 		ErrorToHTTP(w, err)
 		return
 	}
 
-	h.l.Sugar().Infow("Connecting to SRT ",
-		"offer", params,
-	)
-	srtConnection, err := astisrt.Dial(astisrt.DialOptions{
-		ConnectionOptions: []astisrt.ConnectionOption{
-			astisrt.WithLatency(h.c.SRTConnectionLatencyMS),
-			astisrt.WithStreamid(params.SRTStreamID),
-		},
-
-		OnDisconnect: func(c *astisrt.Connection, err error) {
-			h.l.Sugar().Fatalw("Disconnected from SRT",
-				"error", err,
-			)
-		},
-
-		Host: params.SRTHost,
-		Port: params.SRTPort,
-	})
+	srtConnection, err := h.srtController.Connect(&params)
 	if err != nil {
 		ErrorToHTTP(w, err)
 		return
 	}
-	h.l.Sugar().Infow("Connected to SRT")
 
-	go srtToWebRTC(srtConnection, videoTrack, metadataSender)
+	go h.streamingController.Stream(r.Context(), srtConnection, videoTrack, metadataSender)
 
-	w.Header().Set("Content-Type", "application/json")
-	if _, err := w.Write(response); err != nil {
+	if _, err := w.Write(localOfferDescription); err != nil {
 		ErrorToHTTP(w, err)
 		return
 	}
-}
-
-func srtToWebRTC(srtConnection *astisrt.Connection, videoTrack *webrtc.TrackLocalStaticSample, metadataTrack *webrtc.DataChannel) {
-	r, w := io.Pipe()
-	defer r.Close()
-	defer w.Close()
-	defer srtConnection.Close()
-
-	go func() {
-		defer srtConnection.Close()
-		inboundMpegTsPacket := make([]byte, 1316) // SRT Read Size
-
-		for {
-			n, err := srtConnection.Read(inboundMpegTsPacket)
-			if err != nil {
-				break
-			}
-
-			if _, err := w.Write(inboundMpegTsPacket[:n]); err != nil {
-				break
-			}
-		}
-	}()
-
-	dmx := astits.NewDemuxer(context.Background(), r)
-	eia608Reader := eia608.NewEIA608Reader()
-	h264PID := uint16(0)
-	for {
-		d, err := dmx.NextData()
-		if err != nil {
-			break
-		}
-
-		if d.PMT != nil {
-			for _, es := range d.PMT.ElementaryStreams {
-				msg, _ := json.Marshal(entity.Message{
-					Type:    entity.MessageTypeMetadata,
-					Message: es.StreamType.String(),
-				})
-				metadataTrack.SendText(string(msg))
-				if es.StreamType == astits.StreamTypeH264Video {
-					h264PID = es.ElementaryPID
-				}
-			}
-
-			for _, d := range d.PMT.ProgramDescriptors {
-				if d.MaximumBitrate != nil {
-					bitrateInMbitsPerSecond := float32(d.MaximumBitrate.Bitrate) / float32(125000)
-					msg, _ := json.Marshal(entity.Message{
-						Type:    entity.MessageTypeMetadata,
-						Message: fmt.Sprintf("Bitrate %.2fMbps", bitrateInMbitsPerSecond),
-					})
-					metadataTrack.SendText(string(msg))
-				}
-			}
-		}
-
-		if d.PID == h264PID && d.PES != nil {
-			if err = videoTrack.WriteSample(media.Sample{Data: d.PES.Data, Duration: time.Second / 30}); err != nil {
-				break
-			}
-			captions, err := eia608Reader.Parse(d.PES)
-			if err != nil {
-				break
-			}
-			if captions != "" {
-				captionsMsg, err := eia608.BuildCaptionsMessage(d.PES.Header.OptionalHeader.PTS, captions)
-				if err != nil {
-					break
-				}
-				metadataTrack.SendText(captionsMsg)
-			}
-		}
-	}
-
+	SetSuccessJson(w)
 }

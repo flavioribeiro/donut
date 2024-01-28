@@ -1,49 +1,54 @@
 package srt
 
 import (
-	"log"
-
 	astisrt "github.com/asticode/go-astisrt/pkg"
 	"github.com/flavioribeiro/donut/internal/entity"
+	"go.uber.org/zap"
 )
 
 type SRTController struct {
 	c *entity.Config
+	l *zap.Logger
 }
 
-func NewSRTController(c *entity.Config) *SRTController {
+func NewSRTController(c *entity.Config, l *zap.Logger) *SRTController {
 	return &SRTController{
 		c: c,
+		l: l,
 	}
 }
 
-func (c *SRTController) Connect(offer *entity.RequestParams) error {
-	if err := offer.Valid(); err != nil {
-		return err
+func (c *SRTController) Connect(params *entity.RequestParams) (*astisrt.Connection, error) {
+	if params == nil {
+		return nil, entity.ErrMissingRemoteOffer
 	}
 
-	// conn, err := c.srtConnect(offer)
-	// if err != nil {
-	// 	return err
-	// }
+	if err := params.Valid(); err != nil {
+		return nil, err
+	}
 
-	return nil
-}
+	c.l.Sugar().Infow("Connecting to SRT ",
+		"offer", params,
+	)
 
-func (c *SRTController) srtConnect(offer *entity.RequestParams) (*astisrt.Connection, error) {
-	srtConnection, err := astisrt.Dial(astisrt.DialOptions{
+	conn, err := astisrt.Dial(astisrt.DialOptions{
 		ConnectionOptions: []astisrt.ConnectionOption{
 			astisrt.WithLatency(c.c.SRTConnectionLatencyMS),
-			astisrt.WithStreamid(offer.SRTStreamID),
+			astisrt.WithStreamid(params.SRTStreamID),
 		},
-		OnDisconnect: func(c *astisrt.Connection, err error) {
-			log.Fatal("Disconnected from SRT")
+
+		OnDisconnect: func(conn *astisrt.Connection, err error) {
+			c.l.Sugar().Fatalw("Disconnected from SRT",
+				"error", err,
+			)
 		},
-		Host: offer.SRTHost,
-		Port: offer.SRTPort,
+
+		Host: params.SRTHost,
+		Port: params.SRTPort,
 	})
 	if err != nil {
 		return nil, err
 	}
-	return srtConnection, nil
+	c.l.Sugar().Infow("Connected to SRT")
+	return conn, nil
 }

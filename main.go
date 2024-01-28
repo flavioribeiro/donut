@@ -8,6 +8,8 @@ import (
 	"log"
 	"net/http"
 
+	donutsrt "github.com/flavioribeiro/donut/internal/controller/srt"
+	donutstreaming "github.com/flavioribeiro/donut/internal/controller/streaming"
 	donutwebrtc "github.com/flavioribeiro/donut/internal/controller/webrtc"
 	"github.com/flavioribeiro/donut/internal/entity"
 	handlers "github.com/flavioribeiro/donut/internal/web"
@@ -46,6 +48,10 @@ func main() {
 
 		// WebRTC controller
 		fx.Provide(donutwebrtc.NewWebRTCController),
+		// SRT controller
+		fx.Provide(donutsrt.NewSRTController),
+		// Streaming controller
+		fx.Provide(donutstreaming.NewStreamingController),
 
 		// Logging, Config
 		fx.Provide(zap.NewProduction),

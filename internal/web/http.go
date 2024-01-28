@@ -53,3 +53,8 @@ func SetCORS(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Expose-Headers", "Authorization")
 	}
 }
+
+func SetSuccessJson(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+}
