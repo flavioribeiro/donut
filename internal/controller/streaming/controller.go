@@ -28,7 +28,7 @@ func NewStreamingController(c *entity.Config, l *zap.Logger) *StreamingControlle
 	}
 }
 
-func (c *StreamingController) Stream(_ context.Context, srtConnection *astisrt.Connection, videoTrack *webrtc.TrackLocalStaticSample, metadataTrack *webrtc.DataChannel) {
+func (c *StreamingController) Stream(srtConnection *astisrt.Connection, videoTrack *webrtc.TrackLocalStaticSample, metadataTrack *webrtc.DataChannel) {
 	r, w := io.Pipe()
 	defer r.Close()
 	defer w.Close()
@@ -54,27 +54,8 @@ func (c *StreamingController) Stream(_ context.Context, srtConnection *astisrt.C
 		}
 
 		if d.PMT != nil {
-			for _, es := range d.PMT.ElementaryStreams {
-				msg, _ := json.Marshal(entity.Message{
-					Type:    entity.MessageTypeMetadata,
-					Message: es.StreamType.String(),
-				})
-				metadataTrack.SendText(string(msg))
-				if es.StreamType == astits.StreamTypeH264Video {
-					h264PID = es.ElementaryPID
-				}
-			}
-
-			for _, d := range d.PMT.ProgramDescriptors {
-				if d.MaximumBitrate != nil {
-					bitrateInMbitsPerSecond := float32(d.MaximumBitrate.Bitrate) / float32(125000)
-					msg, _ := json.Marshal(entity.Message{
-						Type:    entity.MessageTypeMetadata,
-						Message: fmt.Sprintf("Bitrate %.2fMbps", bitrateInMbitsPerSecond),
-					})
-					metadataTrack.SendText(string(msg))
-				}
-			}
+			h264PID = c.captureMediaInfoAndSendToWebRTC(d, metadataTrack, h264PID)
+			c.captureBitrateAndSendToWebRTC(d, metadataTrack)
 		}
 
 		if d.PID == h264PID && d.PES != nil {
@@ -103,6 +84,35 @@ func (c *StreamingController) Stream(_ context.Context, srtConnection *astisrt.C
 			}
 		}
 	}
+}
+
+func (*StreamingController) captureBitrateAndSendToWebRTC(d *astits.DemuxerData, metadataTrack *webrtc.DataChannel) {
+	for _, d := range d.PMT.ProgramDescriptors {
+		if d.MaximumBitrate != nil {
+			bitrateInMbitsPerSecond := float32(d.MaximumBitrate.Bitrate) / float32(125000)
+			msg, _ := json.Marshal(entity.Message{
+				Type:    entity.MessageTypeMetadata,
+				Message: fmt.Sprintf("Bitrate %.2fMbps", bitrateInMbitsPerSecond),
+			})
+			metadataTrack.SendText(string(msg))
+		}
+	}
+}
+
+func (*StreamingController) captureMediaInfoAndSendToWebRTC(d *astits.DemuxerData, metadataTrack *webrtc.DataChannel, h264PID uint16) uint16 {
+	for _, es := range d.PMT.ElementaryStreams {
+
+		msg, _ := json.Marshal(entity.Message{
+			Type:    entity.MessageTypeMetadata,
+			Message: es.StreamType.String(),
+		})
+		metadataTrack.SendText(string(msg))
+
+		if es.StreamType == astits.StreamTypeH264Video {
+			h264PID = es.ElementaryPID
+		}
+	}
+	return h264PID
 }
 
 func (c *StreamingController) readFromSRTIntoWriterPipe(srtConnection *astisrt.Connection, w *io.PipeWriter) {

@@ -97,7 +97,7 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	go h.streamingController.Stream(r.Context(), srtConnection, videoTrack, metadataSender)
+	go h.streamingController.Stream(srtConnection, videoTrack, metadataSender)
 
 	if _, err := w.Write(localOfferDescription); err != nil {
 		ErrorToHTTP(w, err)
