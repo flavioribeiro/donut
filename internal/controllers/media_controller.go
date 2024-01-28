@@ -1,4 +1,4 @@
-package streaming
+package controllers
 
 import (
 	"context"
@@ -10,18 +10,18 @@ import (
 	astisrt "github.com/asticode/go-astisrt/pkg"
 	"github.com/asticode/go-astits"
 	"github.com/flavioribeiro/donut/eia608"
-	"github.com/flavioribeiro/donut/internal/entity"
+	"github.com/flavioribeiro/donut/internal/entities"
 	"github.com/pion/webrtc/v3"
 	"github.com/pion/webrtc/v3/pkg/media"
 	"go.uber.org/zap"
 )
 
 type StreamingController struct {
-	c *entity.Config
+	c *entities.Config
 	l *zap.Logger
 }
 
-func NewStreamingController(c *entity.Config, l *zap.Logger) *StreamingController {
+func NewStreamingController(c *entities.Config, l *zap.Logger) *StreamingController {
 	return &StreamingController{
 		c: c,
 		l: l,
@@ -90,8 +90,8 @@ func (*StreamingController) captureBitrateAndSendToWebRTC(d *astits.DemuxerData,
 	for _, d := range d.PMT.ProgramDescriptors {
 		if d.MaximumBitrate != nil {
 			bitrateInMbitsPerSecond := float32(d.MaximumBitrate.Bitrate) / float32(125000)
-			msg, _ := json.Marshal(entity.Message{
-				Type:    entity.MessageTypeMetadata,
+			msg, _ := json.Marshal(entities.Message{
+				Type:    entities.MessageTypeMetadata,
 				Message: fmt.Sprintf("Bitrate %.2fMbps", bitrateInMbitsPerSecond),
 			})
 			metadataTrack.SendText(string(msg))
@@ -102,8 +102,8 @@ func (*StreamingController) captureBitrateAndSendToWebRTC(d *astits.DemuxerData,
 func (*StreamingController) captureMediaInfoAndSendToWebRTC(d *astits.DemuxerData, metadataTrack *webrtc.DataChannel, h264PID uint16) uint16 {
 	for _, es := range d.PMT.ElementaryStreams {
 
-		msg, _ := json.Marshal(entity.Message{
-			Type:    entity.MessageTypeMetadata,
+		msg, _ := json.Marshal(entities.Message{
+			Type:    entities.MessageTypeMetadata,
 			Message: es.StreamType.String(),
 		})
 		metadataTrack.SendText(string(msg))

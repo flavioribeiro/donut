@@ -1,16 +1,16 @@
-package webrtc
+package controllers
 
 import (
 	"net"
 
-	"github.com/flavioribeiro/donut/internal/entity"
+	"github.com/flavioribeiro/donut/internal/entities"
 	"github.com/flavioribeiro/donut/internal/mapper"
 	"github.com/pion/webrtc/v3"
 	"go.uber.org/zap"
 )
 
 type WebRTCController struct {
-	c      *entity.Config
+	c      *entities.Config
 	l      *zap.Logger
 	iceTcp net.Listener
 	iceUdp net.PacketConn
@@ -18,7 +18,7 @@ type WebRTCController struct {
 }
 
 func NewWebRTCController(
-	c *entity.Config,
+	c *entities.Config,
 	l *zap.Logger,
 	iceTcp net.Listener,
 	iceUdp net.PacketConn,
@@ -73,7 +73,7 @@ func (c *WebRTCController) SetupPeerConnection() error {
 	return nil
 }
 
-func (c *WebRTCController) CreateTrack(track entity.Track, id string, streamId string) (*webrtc.TrackLocalStaticSample, error) {
+func (c *WebRTCController) CreateTrack(track entities.Track, id string, streamId string) (*webrtc.TrackLocalStaticSample, error) {
 	codecCapability := mapper.FromTrackToRTPCodecCapability(track)
 	webRTCtrack, err := webrtc.NewTrackLocalStaticSample(codecCapability, id, streamId)
 	if err != nil {
@@ -89,7 +89,7 @@ func (c *WebRTCController) CreateTrack(track entity.Track, id string, streamId s
 func (c *WebRTCController) CreateDataChannel(channelID string) (*webrtc.DataChannel, error) {
 	if c.peer == nil {
 		// TODO: or call SetupPeerConnection?
-		return nil, entity.ErrMissingWebRTCSetup
+		return nil, entities.ErrMissingWebRTCSetup
 	}
 
 	metadataSender, err := c.peer.CreateDataChannel(channelID, nil)
@@ -102,7 +102,7 @@ func (c *WebRTCController) CreateDataChannel(channelID string) (*webrtc.DataChan
 func (c *WebRTCController) SetRemoteDescription(desc webrtc.SessionDescription) error {
 	if c.peer == nil {
 		// TODO: or call SetupPeerConnection?
-		return entity.ErrMissingWebRTCSetup
+		return entities.ErrMissingWebRTCSetup
 	}
 
 	err := c.peer.SetRemoteDescription(desc)
@@ -115,7 +115,7 @@ func (c *WebRTCController) SetRemoteDescription(desc webrtc.SessionDescription) 
 func (c *WebRTCController) GatheringWebRTC() (*webrtc.SessionDescription, error) {
 	if c.peer == nil {
 		// TODO: or call SetupPeerConnection?
-		return nil, entity.ErrMissingWebRTCSetup
+		return nil, entities.ErrMissingWebRTCSetup
 	}
 
 	c.l.Sugar().Infow("Gathering WebRTC Candidates")
@@ -132,7 +132,7 @@ func (c *WebRTCController) GatheringWebRTC() (*webrtc.SessionDescription, error)
 	return c.peer.LocalDescription(), nil
 }
 
-func NewWebRTCSettingsEngine(c *entity.Config, tcpListener net.Listener, udpListener net.PacketConn) webrtc.SettingEngine {
+func NewWebRTCSettingsEngine(c *entities.Config, tcpListener net.Listener, udpListener net.PacketConn) webrtc.SettingEngine {
 	settingEngine := webrtc.SettingEngine{}
 
 	settingEngine.SetNAT1To1IPs(c.ICEExternalIPsDNAT, webrtc.ICECandidateTypeHost)
@@ -150,7 +150,7 @@ func NewWebRTCMediaEngine() (*webrtc.MediaEngine, error) {
 	return mediaEngine, nil
 }
 
-func NewTCPICEServer(c *entity.Config) (net.Listener, error) {
+func NewTCPICEServer(c *entities.Config) (net.Listener, error) {
 	tcpListener, err := net.ListenTCP("tcp", &net.TCPAddr{
 		IP:   net.IP{0, 0, 0, 0},
 		Port: c.TCPICEPort,
@@ -161,8 +161,7 @@ func NewTCPICEServer(c *entity.Config) (net.Listener, error) {
 	return tcpListener, nil
 }
 
-func NewUDPICEServer(c *entity.Config) (net.PacketConn, error) {
-
+func NewUDPICEServer(c *entities.Config) (net.PacketConn, error) {
 	udpListener, err := net.ListenUDP("udp", &net.UDPAddr{
 		IP:   net.IP{0, 0, 0, 0},
 		Port: c.UDPICEPort,
@@ -170,6 +169,5 @@ func NewUDPICEServer(c *entity.Config) (net.PacketConn, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return udpListener, nil
 }

@@ -1,26 +1,26 @@
-package srt
+package controllers
 
 import (
 	astisrt "github.com/asticode/go-astisrt/pkg"
-	"github.com/flavioribeiro/donut/internal/entity"
+	"github.com/flavioribeiro/donut/internal/entities"
 	"go.uber.org/zap"
 )
 
 type SRTController struct {
-	c *entity.Config
+	c *entities.Config
 	l *zap.Logger
 }
 
-func NewSRTController(c *entity.Config, l *zap.Logger) *SRTController {
+func NewSRTController(c *entities.Config, l *zap.Logger) *SRTController {
 	return &SRTController{
 		c: c,
 		l: l,
 	}
 }
 
-func (c *SRTController) Connect(params *entity.RequestParams) (*astisrt.Connection, error) {
+func (c *SRTController) Connect(params *entities.RequestParams) (*astisrt.Connection, error) {
 	if params == nil {
-		return nil, entity.ErrMissingRemoteOffer
+		return nil, entities.ErrMissingRemoteOffer
 	}
 
 	if err := params.Valid(); err != nil {
