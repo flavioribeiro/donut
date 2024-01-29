@@ -33,11 +33,10 @@ func NewSignalingHandler(
 	}
 }
 
-func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 	if r.Method != http.MethodPost {
 		h.l.Sugar().Errorw("unexpected method")
-		SetError(w, entities.ErrHTTPPostOnly)
-		return
+		return entities.ErrHTTPPostOnly
 	}
 
 	params := entities.RequestParams{}
@@ -45,15 +44,13 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.l.Sugar().Errorw("error while decoding request params json",
 			"error", err,
 		)
-		SetError(w, err)
-		return
+		return err
 	}
 	if err := params.Valid(); err != nil {
 		h.l.Sugar().Errorw("invalid params",
 			"error", err,
 		)
-		SetError(w, err)
-		return
+		return err
 	}
 
 	peer, err := h.webRTCController.CreatePeerConnection()
@@ -61,8 +58,7 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.l.Sugar().Errorw("error while setting up web rtc connection",
 			"error", err,
 		)
-		SetError(w, err)
-		return
+		return err
 	}
 
 	// TODO: create tracks according with SRT available streams
@@ -77,8 +73,7 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.l.Sugar().Errorw("error while creating a web rtc track",
 			"error", err,
 		)
-		SetError(w, err)
-		return
+		return err
 	}
 
 	metadataSender, err := h.webRTCController.CreateDataChannel(peer, entities.MetadataChannelID)
@@ -86,15 +81,14 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.l.Sugar().Errorw("error while createing a web rtc data channel",
 			"error", err,
 		)
-		SetError(w, err)
+		return err
 	}
 
 	if err = h.webRTCController.SetRemoteDescription(peer, params.Offer); err != nil {
 		h.l.Sugar().Errorw("error while setting a remote web rtc description",
 			"error", err,
 		)
-		SetError(w, err)
-		return
+		return err
 	}
 
 	localDescription, err := h.webRTCController.GatheringWebRTC(peer)
@@ -102,17 +96,17 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.l.Sugar().Errorw("error while preparing a local web rtc description",
 			"error", err,
 		)
-		SetError(w, err)
-		return
+		return err
 	}
 
-	localOfferDescription, err := json.Marshal(*localDescription)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	err = json.NewEncoder(w).Encode(*localDescription)
 	if err != nil {
 		h.l.Sugar().Errorw("error while encoding a local web rtc description",
 			"error", err,
 		)
-		SetError(w, err)
-		return
+		return err
 	}
 
 	srtConnection, err := h.srtController.Connect(&params)
@@ -120,18 +114,10 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.l.Sugar().Errorw("error while connecting to an srt server",
 			"error", err,
 		)
-		SetError(w, err)
-		return
+		return err
 	}
 
 	go h.streamingController.Stream(srtConnection, videoTrack, metadataSender)
 
-	if _, err := w.Write(localOfferDescription); err != nil {
-		h.l.Sugar().Errorw("error responding the local web rtc offer description",
-			"error", err,
-		)
-		SetError(w, err)
-		return
-	}
-	SetSuccessJson(w)
+	return nil
 }
