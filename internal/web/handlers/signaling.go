@@ -56,7 +56,8 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.webRTCController.SetupPeerConnection(); err != nil {
+	peer, err := h.webRTCController.CreatePeerConnection()
+	if err != nil {
 		h.l.Sugar().Errorw("error while setting up web rtc connection",
 			"error", err,
 		)
@@ -67,6 +68,7 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// TODO: create tracks according with SRT available streams
 	// Create a video track
 	videoTrack, err := h.webRTCController.CreateTrack(
+		peer,
 		entities.Track{
 			Type: entities.H264,
 		}, "video", params.SRTStreamID,
@@ -79,7 +81,7 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	metadataSender, err := h.webRTCController.CreateDataChannel(entities.MetadataChannelID)
+	metadataSender, err := h.webRTCController.CreateDataChannel(peer, entities.MetadataChannelID)
 	if err != nil {
 		h.l.Sugar().Errorw("error while createing a web rtc data channel",
 			"error", err,
@@ -87,7 +89,7 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		SetError(w, err)
 	}
 
-	if err = h.webRTCController.SetRemoteDescription(params.Offer); err != nil {
+	if err = h.webRTCController.SetRemoteDescription(peer, params.Offer); err != nil {
 		h.l.Sugar().Errorw("error while setting a remote web rtc description",
 			"error", err,
 		)
@@ -95,7 +97,7 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	localDescription, err := h.webRTCController.GatheringWebRTC()
+	localDescription, err := h.webRTCController.GatheringWebRTC(peer)
 	if err != nil {
 		h.l.Sugar().Errorw("error while preparing a local web rtc description",
 			"error", err,

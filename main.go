@@ -46,9 +46,13 @@ func main() {
 		fx.Provide(controllers.NewUDPICEServer),
 
 		// Controllers
-		fx.Provide(controllers.NewWebRTCController),
 		fx.Provide(controllers.NewSRTController),
 		fx.Provide(controllers.NewStreamingController),
+
+		fx.Provide(controllers.NewWebRTCController),
+		fx.Provide(controllers.NewWebRTCSettingsEngine),
+		fx.Provide(controllers.NewWebRTCMediaEngine),
+		fx.Provide(controllers.NewWebRTCAPI),
 
 		// Logging, Config
 		fx.Provide(zap.NewProduction),

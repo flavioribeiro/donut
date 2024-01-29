@@ -19,6 +19,7 @@ func NewSRTController(c *entities.Config, l *zap.Logger) *SRTController {
 }
 
 func (c *SRTController) Connect(params *entities.RequestParams) (*astisrt.Connection, error) {
+	c.l.Sugar().Infow("trying to connect srt")
 	if params == nil {
 		return nil, entities.ErrMissingRemoteOffer
 	}
@@ -47,6 +48,9 @@ func (c *SRTController) Connect(params *entities.RequestParams) (*astisrt.Connec
 		Port: params.SRTPort,
 	})
 	if err != nil {
+		c.l.Sugar().Infow("failed to connect srt",
+			"error", err,
+		)
 		return nil, err
 	}
 	c.l.Sugar().Infow("Connected to SRT")

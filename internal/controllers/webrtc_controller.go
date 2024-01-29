@@ -10,31 +10,25 @@ import (
 )
 
 type WebRTCController struct {
-	c      *entities.Config
-	l      *zap.Logger
-	iceTcp net.Listener
-	iceUdp net.PacketConn
-	peer   *webrtc.PeerConnection
+	c   *entities.Config
+	l   *zap.Logger
+	api *webrtc.API
 }
 
 func NewWebRTCController(
 	c *entities.Config,
 	l *zap.Logger,
-	iceTcp net.Listener,
-	iceUdp net.PacketConn,
+	api *webrtc.API,
 ) *WebRTCController {
 	return &WebRTCController{
-		c:      c,
-		l:      l,
-		iceTcp: iceTcp,
-		iceUdp: iceUdp,
+		c:   c,
+		l:   l,
+		api: api,
 	}
 }
 
-func (c *WebRTCController) SetupPeerConnection() error {
-	if c.peer != nil {
-		return nil
-	}
+func (c *WebRTCController) CreatePeerConnection() (*webrtc.PeerConnection, error) {
+	c.l.Sugar().Infow("trying to set up web rtc conn")
 
 	peerConnectionConfiguration := webrtc.Configuration{}
 	if !c.c.EnableICEMux {
@@ -45,23 +39,12 @@ func (c *WebRTCController) SetupPeerConnection() error {
 		}
 	}
 
-	mediaEngine, err := NewWebRTCMediaEngine()
+	peerConnection, err := c.api.NewPeerConnection(peerConnectionConfiguration)
 	if err != nil {
-		return err
-	}
-
-	api := webrtc.NewAPI(
-		webrtc.WithSettingEngine(NewWebRTCSettingsEngine(
-			c.c,
-			c.iceTcp,
-			c.iceUdp,
-		)),
-		webrtc.WithMediaEngine(mediaEngine),
-	)
-
-	peerConnection, err := api.NewPeerConnection(peerConnectionConfiguration)
-	if err != nil {
-		return err
+		c.l.Sugar().Errorw("error while creating a new peer connection",
+			"error", err,
+		)
+		return nil, err
 	}
 
 	peerConnection.OnICEConnectionStateChange(func(connectionState webrtc.ICEConnectionState) {
@@ -69,67 +52,54 @@ func (c *WebRTCController) SetupPeerConnection() error {
 			"status", connectionState.String(),
 		)
 	})
-	c.peer = peerConnection
-	return nil
+
+	return peerConnection, nil
 }
 
-func (c *WebRTCController) CreateTrack(track entities.Track, id string, streamId string) (*webrtc.TrackLocalStaticSample, error) {
+func (c *WebRTCController) CreateTrack(peer *webrtc.PeerConnection, track entities.Track, id string, streamId string) (*webrtc.TrackLocalStaticSample, error) {
 	codecCapability := mapper.FromTrackToRTPCodecCapability(track)
 	webRTCtrack, err := webrtc.NewTrackLocalStaticSample(codecCapability, id, streamId)
 	if err != nil {
 		return nil, err
 	}
 
-	if _, err := c.peer.AddTrack(webRTCtrack); err != nil {
+	if _, err := peer.AddTrack(webRTCtrack); err != nil {
 		return nil, err
 	}
 	return webRTCtrack, nil
 }
 
-func (c *WebRTCController) CreateDataChannel(channelID string) (*webrtc.DataChannel, error) {
-	if c.peer == nil {
-		// TODO: or call SetupPeerConnection?
-		return nil, entities.ErrMissingWebRTCSetup
-	}
-
-	metadataSender, err := c.peer.CreateDataChannel(channelID, nil)
+func (c *WebRTCController) CreateDataChannel(peer *webrtc.PeerConnection, channelID string) (*webrtc.DataChannel, error) {
+	metadataSender, err := peer.CreateDataChannel(channelID, nil)
 	if err != nil {
 		return nil, err
 	}
 	return metadataSender, nil
 }
 
-func (c *WebRTCController) SetRemoteDescription(desc webrtc.SessionDescription) error {
-	if c.peer == nil {
-		// TODO: or call SetupPeerConnection?
-		return entities.ErrMissingWebRTCSetup
-	}
-
-	err := c.peer.SetRemoteDescription(desc)
+func (c *WebRTCController) SetRemoteDescription(peer *webrtc.PeerConnection, desc webrtc.SessionDescription) error {
+	err := peer.SetRemoteDescription(desc)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (c *WebRTCController) GatheringWebRTC() (*webrtc.SessionDescription, error) {
-	if c.peer == nil {
-		// TODO: or call SetupPeerConnection?
-		return nil, entities.ErrMissingWebRTCSetup
-	}
+func (c *WebRTCController) GatheringWebRTC(peer *webrtc.PeerConnection) (*webrtc.SessionDescription, error) {
 
 	c.l.Sugar().Infow("Gathering WebRTC Candidates")
-	gatherComplete := webrtc.GatheringCompletePromise(c.peer)
-	answer, err := c.peer.CreateAnswer(nil)
+	gatherComplete := webrtc.GatheringCompletePromise(peer)
+	answer, err := peer.CreateAnswer(nil)
 	if err != nil {
 		return nil, err
-	} else if err = c.peer.SetLocalDescription(answer); err != nil {
+	} else if err = peer.SetLocalDescription(answer); err != nil {
 		return nil, err
 	}
-	<-gatherComplete
 
+	<-gatherComplete
 	c.l.Sugar().Infow("Gathering WebRTC Candidates Complete")
-	return c.peer.LocalDescription(), nil
+
+	return peer.LocalDescription(), nil
 }
 
 func NewWebRTCSettingsEngine(c *entities.Config, tcpListener net.Listener, udpListener net.PacketConn) webrtc.SettingEngine {
@@ -148,6 +118,13 @@ func NewWebRTCMediaEngine() (*webrtc.MediaEngine, error) {
 		return nil, err
 	}
 	return mediaEngine, nil
+}
+
+func NewWebRTCAPI(mediaEngine *webrtc.MediaEngine, settingEngine webrtc.SettingEngine) *webrtc.API {
+	return webrtc.NewAPI(
+		webrtc.WithSettingEngine(settingEngine),
+		webrtc.WithMediaEngine(mediaEngine),
+	)
 }
 
 func NewTCPICEServer(c *entities.Config) (net.Listener, error) {
