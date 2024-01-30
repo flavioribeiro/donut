@@ -43,6 +43,9 @@ func errorHandler(l *zap.Logger, next ErrorHTTPHandler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		err := next.ServeHTTP(w, r)
 		if err != nil {
+			l.Sugar().Errorw("error on handler",
+				"err", err,
+			)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}

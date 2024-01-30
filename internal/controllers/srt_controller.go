@@ -16,7 +16,7 @@ type SRTController struct {
 
 func NewSRTController(c *entities.Config, l *zap.Logger, lc fx.Lifecycle) (*SRTController, error) {
 	// Handle logs
-	astisrt.SetLogLevel(astisrt.LogLevel(astisrt.LogLevelError))
+	astisrt.SetLogLevel(astisrt.LogLevel(astisrt.LogLevelNotice))
 	astisrt.SetLogHandler(func(ll astisrt.LogLevel, file, area, msg string, line int) {
 		l.Sugar().Infow("SRT",
 			"ll", ll,

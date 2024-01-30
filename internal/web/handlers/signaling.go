@@ -99,16 +99,6 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 		return err
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	err = json.NewEncoder(w).Encode(*localDescription)
-	if err != nil {
-		h.l.Sugar().Errorw("error while encoding a local web rtc description",
-			"error", err,
-		)
-		return err
-	}
-
 	srtConnection, err := h.srtController.Connect(&params)
 	if err != nil {
 		h.l.Sugar().Errorw("error while connecting to an srt server",
@@ -118,6 +108,17 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 	}
 
 	go h.streamingController.Stream(srtConnection, videoTrack, metadataSender)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	err = json.NewEncoder(w).Encode(*localDescription)
+	if err != nil {
+		h.l.Sugar().Errorw("error while encoding a local web rtc description",
+			"error", err,
+		)
+		return err
+	}
 
 	return nil
 }
