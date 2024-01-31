@@ -1,4 +1,4 @@
-package h264
+package entities
 
 type NALUs struct {
 	Units []NAL
@@ -56,3 +56,60 @@ const (
 	Unspecified31                                           = NALUnitType(31) //	Unspecified
 
 )
+
+func (n *NAL) ParseRBSP() error {
+	switch n.UnitType {
+	case SupplementalEnhancementInformation:
+		err := n.parseSEI()
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (n *NAL) parseSEI() error {
+	numBits := 0
+	byteOffset := 0
+	n.SEI.PayloadType = 0
+	n.SEI.PayloadSize = 0
+	nextBits := n.RBSPByte[byteOffset]
+
+	for {
+		if nextBits == 0xff {
+			n.PayloadType += 255
+			numBits += 8
+			byteOffset += numBits / 8
+			numBits = numBits % 8
+			nextBits = n.RBSPByte[byteOffset]
+			continue
+		}
+		break
+	}
+
+	n.PayloadType += int(nextBits)
+	numBits += 8
+	byteOffset += numBits / 8
+	numBits = numBits % 8
+	nextBits = n.RBSPByte[byteOffset]
+
+	// read size
+	for {
+		if nextBits == 0xff {
+			n.PayloadSize += 255
+			numBits += 8
+			byteOffset += numBits / 8
+			numBits = numBits % 8
+			nextBits = n.RBSPByte[byteOffset]
+			continue
+		}
+		break
+	}
+
+	n.PayloadSize += int(nextBits)
+	numBits += 8
+	byteOffset += numBits / 8
+
+	return nil
+}

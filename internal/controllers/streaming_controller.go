@@ -8,7 +8,6 @@ import (
 
 	astisrt "github.com/asticode/go-astisrt/pkg"
 	"github.com/asticode/go-astits"
-	"github.com/flavioribeiro/donut/eia608"
 	"github.com/flavioribeiro/donut/internal/entities"
 	"github.com/pion/webrtc/v3"
 	"github.com/pion/webrtc/v3/pkg/media"
@@ -43,7 +42,7 @@ func (c *StreamingController) Stream(sp entities.StreamParameters) {
 
 	// reading from reader pipe into mpeg-ts demuxer
 	mpegTSDemuxer := astits.NewDemuxer(sp.Ctx, r)
-	eia608Reader := eia608.NewEIA608Reader()
+	eia608Reader := NewEIA608Reader()
 	h264PID := uint16(0)
 
 	for {
@@ -83,7 +82,7 @@ func (c *StreamingController) Stream(sp entities.StreamParameters) {
 					return
 				}
 				if captions != "" {
-					captionsMsg, err := eia608.BuildCaptionsMessage(mpegTSDemuxData.PES.Header.OptionalHeader.PTS, captions)
+					captionsMsg, err := BuildCaptionsMessage(mpegTSDemuxData.PES.Header.OptionalHeader.PTS, captions)
 					if err != nil {
 						c.l.Sugar().Errorw("failed to build captions message",
 							"error", err,

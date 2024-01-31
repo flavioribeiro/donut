@@ -12,8 +12,6 @@ const (
 	MetadataChannelID string = "metadata"
 )
 
-type Media struct{}
-
 type RequestParams struct {
 	SRTHost     string
 	SRTPort     uint16 `json:",string"`
@@ -67,6 +65,12 @@ const (
 
 type Track struct {
 	Type TrackType
+}
+
+type Cue struct {
+	Type      string
+	StartTime int64
+	Text      string
 }
 
 type StreamParameters struct {
