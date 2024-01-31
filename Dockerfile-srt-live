@@ -1,0 +1,19 @@
+FROM ubuntu:20.04 AS builder
+
+ENV SRT_VERSION="v1.5.3"
+ENV SRC_FOLDER="/opt/srt_lib"
+
+RUN apt-get clean && apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y \
+      tclsh pkg-config cmake libssl-dev build-essential git \
+    && apt-get clean
+
+RUN \
+  mkdir -p "${SRC_FOLDER}" && \
+  git clone --depth 1 --branch "${SRT_VERSION}" https://github.com/Haivision/srt && \
+  cd srt && \
+  ./configure --prefix=. $(configure) && \
+  make && \
+  make install
+ENV PATH="${PATH}:/srt" 
+WORKDIR ${WD}
