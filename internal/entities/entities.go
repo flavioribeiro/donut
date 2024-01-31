@@ -1,8 +1,10 @@
 package entities
 
 import (
+	"context"
 	"fmt"
 
+	astisrt "github.com/asticode/go-astisrt/pkg"
 	"github.com/pion/webrtc/v3"
 )
 
@@ -65,6 +67,15 @@ const (
 
 type Track struct {
 	Type TrackType
+}
+
+type StreamParameters struct {
+	WebRTCConn    *webrtc.PeerConnection
+	Cancel        context.CancelFunc
+	Ctx           context.Context
+	SRTConnection *astisrt.Connection
+	VideoTrack    *webrtc.TrackLocalStaticSample
+	MetadataTrack *webrtc.DataChannel
 }
 
 type Config struct {

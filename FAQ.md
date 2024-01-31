@@ -1,5 +1,18 @@
 # FAQ
 
+## I can't connect two tabs or browser at the same for the SRT
+
+It doesn't work When I try to connect in another browser or tab, or even when I try to refresh the current page. It raises an seemingly timeout error.
+
+```
+astisrt: connecting failed: astisrt: connecting failed: astisrt: Connection setup failure: connection timed out
+```
+
+Apparently both `ffmpeg` and `srt-live-transmit` won't allow multiple persistent connections.
+
+ref1 https://github.com/Haivision/srt/blob/master/docs/apps/srt-live-transmit.md#medium-srt
+ref2 https://github.com/asticode/go-astisrt/issues/6#issuecomment-1917076767
+
 ## It's not working on Firefox/Chrome/Edge.
 
 [WebRTC establishes a baseline set of codecs which all compliant browsers are required to support. Some browsers may choose to allow other codecs as well.](https://developer.mozilla.org/en-US/docs/Web/Media/Formats/WebRTC_codecs#supported_video_codecs)

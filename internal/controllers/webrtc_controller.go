@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"context"
 	"net"
 
 	"github.com/flavioribeiro/donut/internal/entities"
@@ -27,7 +28,7 @@ func NewWebRTCController(
 	}
 }
 
-func (c *WebRTCController) CreatePeerConnection() (*webrtc.PeerConnection, error) {
+func (c *WebRTCController) CreatePeerConnection(cancel context.CancelFunc) (*webrtc.PeerConnection, error) {
 	c.l.Sugar().Infow("trying to set up web rtc conn")
 
 	peerConnectionConfiguration := webrtc.Configuration{}
@@ -48,6 +49,18 @@ func (c *WebRTCController) CreatePeerConnection() (*webrtc.PeerConnection, error
 	}
 
 	peerConnection.OnICEConnectionStateChange(func(connectionState webrtc.ICEConnectionState) {
+		finished := connectionState == webrtc.ICEConnectionStateClosed ||
+			connectionState == webrtc.ICEConnectionStateDisconnected ||
+			connectionState == webrtc.ICEConnectionStateCompleted ||
+			connectionState == webrtc.ICEConnectionStateFailed
+
+		if finished {
+			c.l.Sugar().Infow("Canceling webrtc",
+				"status", connectionState.String(),
+			)
+			cancel()
+		}
+
 		c.l.Sugar().Infow("OnICEConnectionStateChange",
 			"status", connectionState.String(),
 		)

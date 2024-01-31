@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 
@@ -53,7 +54,9 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 		return err
 	}
 
-	peer, err := h.webRTCController.CreatePeerConnection()
+	ctx, cancel := context.WithCancel(context.Background())
+
+	peer, err := h.webRTCController.CreatePeerConnection(cancel)
 	if err != nil {
 		h.l.Sugar().Errorw("error while setting up web rtc connection",
 			"error", err,
@@ -99,7 +102,7 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 		return err
 	}
 
-	srtConnection, err := h.srtController.Connect(&params)
+	srtConnection, err := h.srtController.Connect(cancel, params)
 	if err != nil {
 		h.l.Sugar().Errorw("error while connecting to an srt server",
 			"error", err,
@@ -107,7 +110,14 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 		return err
 	}
 
-	go h.streamingController.Stream(srtConnection, videoTrack, metadataSender)
+	go h.streamingController.Stream(entities.StreamParameters{
+		Cancel:        cancel,
+		Ctx:           ctx,
+		WebRTCConn:    peer,
+		SRTConnection: srtConnection,
+		VideoTrack:    videoTrack,
+		MetadataTrack: metadataSender,
+	})
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)

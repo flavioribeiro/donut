@@ -51,18 +51,15 @@ func NewSRTController(c *entities.Config, l *zap.Logger, lc fx.Lifecycle) (*SRTC
 	}, nil
 }
 
-func (c *SRTController) Connect(params *entities.RequestParams) (*astisrt.Connection, error) {
+func (c *SRTController) Connect(cancel context.CancelFunc, params entities.RequestParams) (*astisrt.Connection, error) {
 	c.l.Sugar().Infow("trying to connect srt")
-	if params == nil {
-		return nil, entities.ErrMissingRemoteOffer
-	}
 
 	if err := params.Valid(); err != nil {
 		return nil, err
 	}
 
 	c.l.Sugar().Infow("Connecting to SRT ",
-		"offer", params,
+		"offer", params.String(),
 	)
 
 	conn, err := astisrt.Dial(astisrt.DialOptions{
@@ -74,9 +71,10 @@ func (c *SRTController) Connect(params *entities.RequestParams) (*astisrt.Connec
 		},
 
 		OnDisconnect: func(conn *astisrt.Connection, err error) {
-			c.l.Sugar().Fatalw("Disconnected from SRT",
+			c.l.Sugar().Infow("Canceling SRT",
 				"error", err,
 			)
+			cancel()
 		},
 
 		Host: params.SRTHost,
