@@ -13,22 +13,9 @@ $ go install github.com/flavioribeiro/donut@latest
 ```
 Once installed, execute `donut`. This will be in your `$GOPATH/bin`. The default will be `~/go/bin/donut`
 
-
-### Install & Run using Docker
-
-Alternatively, you can build a docker image. Docker will take care of downloading the dependencies (including the libsrt) and compiling donut for you.
-
-```
-$ docker build -t donut .
-$ docker run -it -p 8080:8080 donut
-```
-
-### Open the Web UI
-Open [http://localhost:8080](http://localhost:8080). You will see three text boxes. Fill in your details for your SRT listener configuration and hit connect.
-
 ### Run using docker-compose
 
-Docker-compose can simulate an SRT live transmission and run the donut in separate containers.
+Alternatively, you can use `docker-compose` to simulate an SRT live transmission and run the donut effortless.
 
 ```
 $ make run
@@ -38,6 +25,10 @@ $ make run
 Open [http://localhost:8080](http://localhost:8080). You will see three text boxes. Fill in with the SRT listener configuration and hit connect.
 
 ![donut docker-compose setup](/.github/docker-compose-donut-setup.webp "donut docker-compose setup")
+
+### How it works
+
+Please check the [How it works](/HOW_IT_WORKS.md) section.
 
 ### FAQ
 

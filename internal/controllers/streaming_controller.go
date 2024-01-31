@@ -42,7 +42,7 @@ func (c *StreamingController) Stream(sp entities.StreamParameters) {
 	go c.readFromSRTIntoWriterPipe(sp.SRTConnection, w)
 
 	// reading from reader pipe into mpeg-ts demuxer
-	dmx := astits.NewDemuxer(sp.Ctx, r)
+	mpegTSDemuxer := astits.NewDemuxer(sp.Ctx, r)
 	eia608Reader := eia608.NewEIA608Reader()
 	h264PID := uint16(0)
 
@@ -52,42 +52,45 @@ func (c *StreamingController) Stream(sp entities.StreamParameters) {
 			c.l.Sugar().Errorw("stream was cancelled")
 			return
 		default:
-			d, err := dmx.NextData()
+			// ref https://tsduck.io/download/docs/mpegts-introduction.pdf
+			mpegTSDemuxData, err := mpegTSDemuxer.NextData()
 			if err != nil {
-				c.l.Sugar().Errorw("failed to demux mpeg ts",
+				c.l.Sugar().Errorw("failed to demux mpeg-ts",
 					"error", err,
 				)
-				break
+				return
 			}
 
-			if d.PMT != nil {
-				h264PID = c.captureMediaInfoAndSendToWebRTC(d, sp.MetadataTrack, h264PID)
-				c.captureBitrateAndSendToWebRTC(d, sp.MetadataTrack)
+			if mpegTSDemuxData.PMT != nil {
+				// writing mpeg-ts meida metadata to the metadata webrtc channel
+				h264PID = c.captureMediaInfoAndSendToWebRTC(mpegTSDemuxData, sp.MetadataTrack, h264PID)
+				c.captureBitrateAndSendToWebRTC(mpegTSDemuxData, sp.MetadataTrack)
 			}
 
-			if d.PID == h264PID && d.PES != nil {
+			if mpegTSDemuxData.PID == h264PID && mpegTSDemuxData.PES != nil {
 				// writing video from mpeg-ts into webrtc
-				if err = sp.VideoTrack.WriteSample(media.Sample{Data: d.PES.Data, Duration: time.Second / 30}); err != nil {
-					c.l.Sugar().Errorw("failed to write a sample mpeg ts to web rtc",
+				if err = sp.VideoTrack.WriteSample(media.Sample{Data: mpegTSDemuxData.PES.Data, Duration: time.Second / 30}); err != nil {
+					c.l.Sugar().Errorw("failed to write a sample mpeg-ts to web rtc",
 						"error", err,
 					)
-					break
+					return
 				}
-				captions, err := eia608Reader.Parse(d.PES)
+				captions, err := eia608Reader.Parse(mpegTSDemuxData.PES)
 				if err != nil {
 					c.l.Sugar().Errorw("failed to parse eia 608",
 						"error", err,
 					)
-					break
+					return
 				}
 				if captions != "" {
-					captionsMsg, err := eia608.BuildCaptionsMessage(d.PES.Header.OptionalHeader.PTS, captions)
+					captionsMsg, err := eia608.BuildCaptionsMessage(mpegTSDemuxData.PES.Header.OptionalHeader.PTS, captions)
 					if err != nil {
 						c.l.Sugar().Errorw("failed to build captions message",
 							"error", err,
 						)
-						break
+						return
 					}
+					// writing metadata to the metadata webrtc channel
 					sp.MetadataTrack.SendText(captionsMsg)
 				}
 			}
