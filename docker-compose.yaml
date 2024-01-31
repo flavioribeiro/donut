@@ -17,7 +17,8 @@ services:
       context: .
       dockerfile: Dockerfile-srt-live
     entrypoint: sh
-    command: "./scripts/srt.sh"
+    command: "./srt.sh"
+    working_dir: "/scripts"
     volumes:
       - "./scripts:/scripts"
     environment:
