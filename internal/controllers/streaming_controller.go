@@ -16,10 +16,10 @@ import (
 
 type StreamingController struct {
 	c *entities.Config
-	l *zap.Logger
+	l *zap.SugaredLogger
 }
 
-func NewStreamingController(c *entities.Config, l *zap.Logger) *StreamingController {
+func NewStreamingController(c *entities.Config, l *zap.SugaredLogger) *StreamingController {
 	return &StreamingController{
 		c: c,
 		l: l,
@@ -43,18 +43,18 @@ func (c *StreamingController) Stream(sp entities.StreamParameters) {
 	eia608Reader := NewEIA608Reader()
 	h264PID := uint16(0)
 
-	c.l.Sugar().Infow("streaming has started")
+	c.l.Infow("streaming has started")
 	for {
 		select {
 		case <-sp.Ctx.Done():
-			c.l.Sugar().Errorw("streaming has stopped")
+			c.l.Errorw("streaming has stopped")
 			return
 		default:
 			// fetching mpeg-ts data
 			// ref https://tsduck.io/download/docs/mpegts-introduction.pdf
 			mpegTSDemuxData, err := mpegTSDemuxer.NextData()
 			if err != nil {
-				c.l.Sugar().Errorw("failed to demux mpeg-ts",
+				c.l.Errorw("failed to demux mpeg-ts",
 					"error", err,
 				)
 				return
@@ -69,7 +69,7 @@ func (c *StreamingController) Stream(sp entities.StreamParameters) {
 			// writing mpeg-ts video/captions to webrtc channels
 			err = c.writeMpegtsToWebRTC(mpegTSDemuxData, h264PID, err, sp, eia608Reader)
 			if err != nil {
-				c.l.Sugar().Errorw("failed to write an mpeg-ts to web rtc",
+				c.l.Errorw("failed to write an mpeg-ts to web rtc",
 					"error", err,
 				)
 				return
@@ -139,14 +139,14 @@ func (c *StreamingController) readFromSRTIntoWriterPipe(srtConnection *astisrt.C
 	for {
 		n, err := srtConnection.Read(inboundMpegTsPacket)
 		if err != nil {
-			c.l.Sugar().Errorw("str conn failed to write data to buffer",
+			c.l.Errorw("str conn failed to write data to buffer",
 				"error", err,
 			)
 			break
 		}
 
 		if _, err := w.Write(inboundMpegTsPacket[:n]); err != nil {
-			c.l.Sugar().Errorw("failed to write mpeg-ts into the pipe",
+			c.l.Errorw("failed to write mpeg-ts into the pipe",
 				"error", err,
 			)
 			break

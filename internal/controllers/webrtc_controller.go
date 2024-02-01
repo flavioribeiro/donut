@@ -12,13 +12,13 @@ import (
 
 type WebRTCController struct {
 	c   *entities.Config
-	l   *zap.Logger
+	l   *zap.SugaredLogger
 	api *webrtc.API
 }
 
 func NewWebRTCController(
 	c *entities.Config,
-	l *zap.Logger,
+	l *zap.SugaredLogger,
 	api *webrtc.API,
 ) *WebRTCController {
 	return &WebRTCController{
@@ -29,7 +29,7 @@ func NewWebRTCController(
 }
 
 func (c *WebRTCController) CreatePeerConnection(cancel context.CancelFunc) (*webrtc.PeerConnection, error) {
-	c.l.Sugar().Infow("trying to set up web rtc conn")
+	c.l.Infow("trying to set up web rtc conn")
 
 	peerConnectionConfiguration := webrtc.Configuration{}
 	if !c.c.EnableICEMux {
@@ -42,7 +42,7 @@ func (c *WebRTCController) CreatePeerConnection(cancel context.CancelFunc) (*web
 
 	peerConnection, err := c.api.NewPeerConnection(peerConnectionConfiguration)
 	if err != nil {
-		c.l.Sugar().Errorw("error while creating a new peer connection",
+		c.l.Errorw("error while creating a new peer connection",
 			"error", err,
 		)
 		return nil, err
@@ -55,13 +55,13 @@ func (c *WebRTCController) CreatePeerConnection(cancel context.CancelFunc) (*web
 			connectionState == webrtc.ICEConnectionStateFailed
 
 		if finished {
-			c.l.Sugar().Infow("Canceling webrtc",
+			c.l.Infow("Canceling webrtc",
 				"status", connectionState.String(),
 			)
 			cancel()
 		}
 
-		c.l.Sugar().Infow("OnICEConnectionStateChange",
+		c.l.Infow("OnICEConnectionStateChange",
 			"status", connectionState.String(),
 		)
 	})
@@ -100,7 +100,7 @@ func (c *WebRTCController) SetRemoteDescription(peer *webrtc.PeerConnection, des
 
 func (c *WebRTCController) GatheringWebRTC(peer *webrtc.PeerConnection) (*webrtc.SessionDescription, error) {
 
-	c.l.Sugar().Infow("Gathering WebRTC Candidates")
+	c.l.Infow("Gathering WebRTC Candidates")
 	gatherComplete := webrtc.GatheringCompletePromise(peer)
 	answer, err := peer.CreateAnswer(nil)
 	if err != nil {
@@ -110,7 +110,7 @@ func (c *WebRTCController) GatheringWebRTC(peer *webrtc.PeerConnection) (*webrtc
 	}
 
 	<-gatherComplete
-	c.l.Sugar().Infow("Gathering WebRTC Candidates Complete")
+	c.l.Infow("Gathering WebRTC Candidates Complete")
 
 	return peer.LocalDescription(), nil
 }

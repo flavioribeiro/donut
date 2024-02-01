@@ -11,14 +11,14 @@ import (
 
 type SRTController struct {
 	c *entities.Config
-	l *zap.Logger
+	l *zap.SugaredLogger
 }
 
-func NewSRTController(c *entities.Config, l *zap.Logger, lc fx.Lifecycle) (*SRTController, error) {
+func NewSRTController(c *entities.Config, l *zap.SugaredLogger, lc fx.Lifecycle) (*SRTController, error) {
 	// Handle logs
 	astisrt.SetLogLevel(astisrt.LogLevel(astisrt.LogLevelNotice))
 	astisrt.SetLogHandler(func(ll astisrt.LogLevel, file, area, msg string, line int) {
-		l.Sugar().Infow("SRT",
+		l.Infow("SRT",
 			"ll", ll,
 			"msg", msg,
 		)
@@ -26,7 +26,7 @@ func NewSRTController(c *entities.Config, l *zap.Logger, lc fx.Lifecycle) (*SRTC
 
 	// Startup srt
 	if err := astisrt.Startup(); err != nil {
-		l.Sugar().Errorw("failed to start up srt",
+		l.Errorw("failed to start up srt",
 			"error", err,
 		)
 		return nil, err
@@ -36,7 +36,7 @@ func NewSRTController(c *entities.Config, l *zap.Logger, lc fx.Lifecycle) (*SRTC
 		OnStop: func(ctx context.Context) error {
 			// Clean up
 			if err := astisrt.CleanUp(); err != nil {
-				l.Sugar().Errorw("failed to clean up srt",
+				l.Errorw("failed to clean up srt",
 					"error", err,
 				)
 				return err
@@ -52,13 +52,13 @@ func NewSRTController(c *entities.Config, l *zap.Logger, lc fx.Lifecycle) (*SRTC
 }
 
 func (c *SRTController) Connect(cancel context.CancelFunc, params entities.RequestParams) (*astisrt.Connection, error) {
-	c.l.Sugar().Infow("trying to connect srt")
+	c.l.Infow("trying to connect srt")
 
 	if err := params.Valid(); err != nil {
 		return nil, err
 	}
 
-	c.l.Sugar().Infow("Connecting to SRT ",
+	c.l.Infow("Connecting to SRT ",
 		"offer", params.String(),
 	)
 
@@ -71,7 +71,7 @@ func (c *SRTController) Connect(cancel context.CancelFunc, params entities.Reque
 		},
 
 		OnDisconnect: func(conn *astisrt.Connection, err error) {
-			c.l.Sugar().Infow("Canceling SRT",
+			c.l.Infow("Canceling SRT",
 				"error", err,
 			)
 			cancel()
@@ -81,11 +81,11 @@ func (c *SRTController) Connect(cancel context.CancelFunc, params entities.Reque
 		Port: params.SRTPort,
 	})
 	if err != nil {
-		c.l.Sugar().Errorw("failed to connect srt",
+		c.l.Errorw("failed to connect srt",
 			"error", err,
 		)
 		return nil, err
 	}
-	c.l.Sugar().Infow("Connected to SRT")
+	c.l.Infow("Connected to SRT")
 	return conn, nil
 }

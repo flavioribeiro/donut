@@ -14,7 +14,7 @@ type ErrorHTTPHandler interface {
 func NewServeMux(
 	index *handlers.IndexHandler,
 	signaling *handlers.SignalingHandler,
-	l *zap.Logger,
+	l *zap.SugaredLogger,
 ) *http.ServeMux {
 
 	mux := http.NewServeMux()
@@ -39,11 +39,11 @@ func setCors(next http.Handler) http.Handler {
 	})
 }
 
-func errorHandler(l *zap.Logger, next ErrorHTTPHandler) http.Handler {
+func errorHandler(l *zap.SugaredLogger, next ErrorHTTPHandler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		err := next.ServeHTTP(w, r)
 		if err != nil {
-			l.Sugar().Errorw("error on handler",
+			l.Errorw("error on handler",
 				"err", err,
 			)
 			http.Error(w, err.Error(), http.StatusInternalServerError)

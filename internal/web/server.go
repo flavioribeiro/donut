@@ -14,7 +14,7 @@ import (
 func NewHTTPServer(
 	c *entities.Config,
 	mux *http.ServeMux,
-	log *zap.Logger,
+	log *zap.SugaredLogger,
 	lc fx.Lifecycle,
 ) *http.Server {
 	srv := &http.Server{
@@ -27,7 +27,7 @@ func NewHTTPServer(
 			if err != nil {
 				return err
 			}
-			log.Sugar().Infow(fmt.Sprintf("Starting HTTP server. Open http://%s to access the demo", srv.Addr),
+			log.Infow(fmt.Sprintf("Starting HTTP server. Open http://%s to access the demo", srv.Addr),
 				"addr", srv.Addr,
 			)
 			go srv.Serve(ln)

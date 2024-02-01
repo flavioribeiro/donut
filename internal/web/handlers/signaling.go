@@ -12,7 +12,7 @@ import (
 
 type SignalingHandler struct {
 	c                   *entities.Config
-	l                   *zap.Logger
+	l                   *zap.SugaredLogger
 	webRTCController    *controllers.WebRTCController
 	srtController       *controllers.SRTController
 	streamingController *controllers.StreamingController
@@ -20,7 +20,7 @@ type SignalingHandler struct {
 
 func NewSignalingHandler(
 	c *entities.Config,
-	log *zap.Logger,
+	log *zap.SugaredLogger,
 	webRTCController *controllers.WebRTCController,
 	srtController *controllers.SRTController,
 	streamingController *controllers.StreamingController,
@@ -36,19 +36,19 @@ func NewSignalingHandler(
 
 func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 	if r.Method != http.MethodPost {
-		h.l.Sugar().Errorw("unexpected method")
+		h.l.Errorw("unexpected method")
 		return entities.ErrHTTPPostOnly
 	}
 
 	params := entities.RequestParams{}
 	if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
-		h.l.Sugar().Errorw("error while decoding request params json",
+		h.l.Errorw("error while decoding request params json",
 			"error", err,
 		)
 		return err
 	}
 	if err := params.Valid(); err != nil {
-		h.l.Sugar().Errorw("invalid params",
+		h.l.Errorw("invalid params",
 			"error", err,
 		)
 		return err
@@ -58,7 +58,7 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 
 	peer, err := h.webRTCController.CreatePeerConnection(cancel)
 	if err != nil {
-		h.l.Sugar().Errorw("error while setting up web rtc connection",
+		h.l.Errorw("error while setting up web rtc connection",
 			"error", err,
 		)
 		return err
@@ -73,7 +73,7 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 		}, "video", params.SRTStreamID,
 	)
 	if err != nil {
-		h.l.Sugar().Errorw("error while creating a web rtc track",
+		h.l.Errorw("error while creating a web rtc track",
 			"error", err,
 		)
 		return err
@@ -81,14 +81,14 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 
 	metadataSender, err := h.webRTCController.CreateDataChannel(peer, entities.MetadataChannelID)
 	if err != nil {
-		h.l.Sugar().Errorw("error while createing a web rtc data channel",
+		h.l.Errorw("error while createing a web rtc data channel",
 			"error", err,
 		)
 		return err
 	}
 
 	if err = h.webRTCController.SetRemoteDescription(peer, params.Offer); err != nil {
-		h.l.Sugar().Errorw("error while setting a remote web rtc description",
+		h.l.Errorw("error while setting a remote web rtc description",
 			"error", err,
 		)
 		return err
@@ -96,7 +96,7 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 
 	localDescription, err := h.webRTCController.GatheringWebRTC(peer)
 	if err != nil {
-		h.l.Sugar().Errorw("error while preparing a local web rtc description",
+		h.l.Errorw("error while preparing a local web rtc description",
 			"error", err,
 		)
 		return err
@@ -104,7 +104,7 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 
 	srtConnection, err := h.srtController.Connect(cancel, params)
 	if err != nil {
-		h.l.Sugar().Errorw("error while connecting to an srt server",
+		h.l.Errorw("error while connecting to an srt server",
 			"error", err,
 		)
 		return err
@@ -124,7 +124,7 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 
 	err = json.NewEncoder(w).Encode(*localDescription)
 	if err != nil {
-		h.l.Sugar().Errorw("error while encoding a local web rtc description",
+		h.l.Errorw("error while encoding a local web rtc description",
 			"error", err,
 		)
 		return err

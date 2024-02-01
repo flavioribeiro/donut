@@ -54,8 +54,11 @@ func main() {
 		fx.Provide(controllers.NewWebRTCMediaEngine),
 		fx.Provide(controllers.NewWebRTCAPI),
 
-		// Logging, Config
-		fx.Provide(zap.NewProduction),
+		// Logging, Config constructors
+		fx.Provide(func() *zap.SugaredLogger {
+			logger, _ := zap.NewProduction()
+			return logger.Sugar()
+		}),
 		fx.Provide(func() *entities.Config {
 			return &c
 		}),
