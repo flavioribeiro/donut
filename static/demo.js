@@ -46,6 +46,8 @@ const setupWebRTC = (setRemoteSDPfn) => {
   // once a track arrives, add it to the remoteVideos div
   // with auto play.
   pc.ontrack = function (event) {
+    log("ontrack : " + event.track.kind + " label " + event.track.label);
+
     const el = document.createElement(event.track.kind);
     el.srcObject = event.streams[0];
     el.autoplay = true
@@ -59,7 +61,7 @@ const setupWebRTC = (setRemoteSDPfn) => {
   pc.createDataChannel('metadata');
   // once the metadata arrives, add it to the metadata div
   pc.ondatachannel = (e) => {
-    log("ondatachannel: " + e);
+    log("ondatachannel: " + JSON.stringify(e));
 
     e.channel.onmessage = (event) => {
       let msg = JSON.parse(event.data)
