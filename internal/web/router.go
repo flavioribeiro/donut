@@ -20,8 +20,11 @@ func NewServeMux(
 	mux := http.NewServeMux()
 
 	mux.Handle("/", index)
+
+	fs := http.FileServer(http.Dir("./static"))
+	mux.Handle("/demo/", http.StripPrefix("/demo/", fs))
+
 	mux.Handle("/doSignaling", setCors(errorHandler(l, signaling)))
-	mux.Handle("/demo", http.FileServer(http.Dir("./demo")))
 
 	return mux
 }

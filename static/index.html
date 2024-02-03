@@ -1,0 +1,66 @@
+<html>
+
+<head>
+	<title>donut</title>
+	<script src="demo.js"></script>
+	<style src="demo.css"></style>
+</head>
+
+<body>
+
+	<h1>SRT Config</h1>
+	<b> SRT Host </b>
+	<input type="text" id="srt-host" value="srt"> <br />
+
+	<b> SRT Port </b>
+	<input type="text" id="srt-port" value="40052" /> <br />
+
+	<b> SRT Stream ID </b>
+	<input type="text" id="srt-stream-id" value="stream-id" /> <br />
+	<button onclick="onConnect()"> Connect </button>
+
+	<h1>Video</h1>
+	<div id="remoteVideos"></div>
+	
+	<h1>Metadata</h1>
+	<div id="metadata"></div>
+	
+	<h1>Logs</h1>
+	<div id="log"></div>
+
+</body>
+
+<script>
+	function docReady(fn) {
+		if (document.readyState === "complete" || document.readyState === "interactive") {
+			setTimeout(fn, 1);
+		} else {
+			document.addEventListener("DOMContentLoaded", fn);
+		}
+	}
+
+	docReady(function () {
+		const queryString = window.location.search;
+		const urlParams = new URLSearchParams(queryString);
+
+		window.onConnect = () => {
+			window.startSession();
+		}
+
+		if (urlParams.has('srtHost')) {
+			document.getElementById('srt-host').value = urlParams.get('srtHost');
+		}
+		if (urlParams.has('srtPort')) {
+			document.getElementById('srt-port').value = urlParams.get('srtPort');
+		}
+		if (urlParams.has('srtStreamId')) {
+			document.getElementById('srt-stream-id').value = urlParams.get('srtStreamId');
+		}
+
+		if (urlParams.get('autoplay') === "true") {
+			onConnect();
+		}
+	});
+</script>
+
+</html>

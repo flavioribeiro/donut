@@ -26,7 +26,7 @@ func NewStreamingController(c *entities.Config, l *zap.SugaredLogger) *Streaming
 	}
 }
 
-func (c *StreamingController) Stream(sp entities.StreamParameters) {
+func (c *StreamingController) Stream(sp *entities.StreamParameters) {
 	r, w := io.Pipe()
 
 	defer r.Close()
@@ -78,7 +78,7 @@ func (c *StreamingController) Stream(sp entities.StreamParameters) {
 	}
 }
 
-func (c *StreamingController) writeMpegtsToWebRTC(mpegTSDemuxData *astits.DemuxerData, h264PID uint16, err error, sp entities.StreamParameters, eia608Reader *EIA608Reader) error {
+func (c *StreamingController) writeMpegtsToWebRTC(mpegTSDemuxData *astits.DemuxerData, h264PID uint16, err error, sp *entities.StreamParameters, eia608Reader *EIA608Reader) error {
 	if mpegTSDemuxData.PID == h264PID && mpegTSDemuxData.PES != nil {
 
 		if err = sp.VideoTrack.WriteSample(media.Sample{Data: mpegTSDemuxData.PES.Data, Duration: time.Second / 30}); err != nil {
