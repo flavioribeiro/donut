@@ -83,8 +83,9 @@ type StreamParameters struct {
 }
 
 type Config struct {
-	HTTPPort int32  `required:"true" default:"8080"`
-	HTTPHost string `required:"true" default:"0.0.0.0"`
+	HTTPPort       int32  `required:"true" default:"8080"`
+	HTTPHost       string `required:"true" default:"0.0.0.0"`
+	PproffHTTPPort int32  `required:"true" default:"6060"`
 
 	TCPICEPort         int      `required:"true" default:"8081"`
 	UDPICEPort         int      `required:"true" default:"8081"`

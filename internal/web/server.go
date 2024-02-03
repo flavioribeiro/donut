@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	_ "net/http/pprof"
 
 	"github.com/flavioribeiro/donut/internal/entities"
 	"go.uber.org/fx"
@@ -30,6 +31,12 @@ func NewHTTPServer(
 			log.Infow(fmt.Sprintf("Starting HTTP server. Open http://%s to access the demo", srv.Addr),
 				"addr", srv.Addr,
 			)
+			// profiling server
+			go func() {
+				http.ListenAndServe(fmt.Sprintf(":%d", c.PproffHTTPPort), nil)
+			}()
+
+			// main server
 			go srv.Serve(ln)
 			return nil
 		},
