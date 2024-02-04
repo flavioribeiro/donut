@@ -1,3 +1,20 @@
+# Adding audio
+
+## Date: 2/4/24
+### Summary: Adding audio track
+
+refs:
+* webrtc discussion https://github.com/pion/webrtc/discussions/1955
+* go webrtc example https://github.com/pion/webrtc/blob/master/examples/play-from-disk-renegotiation/main.go
+* webrtc discussion https://stackoverflow.com/questions/66243915/how-to-get-multiple-streams-from-webrtc-peerconnection
+* golang libav https://github.com/giorgisio/goav/blob/master/example/tutorial01.go#L69
+* libav transcoding example gshttps://github.com/FFmpeg/FFmpeg/blob/master/doc/examples/transcode.c#L158
+* libav network example https://github.com/FFmpeg/FFmpgseg/blob/master/doc/examples/avio_http_serve_files.c#L116
+* libav avio example https://github.com/FFmpeg/FFmpeg/blob/master/doc/examples/avio_read_callback.c#L95
+* example https://blog.mi.hdm-stuttgart.de/index.php/2018/03/21/livestreaming-with-libav-tutorial-part-2/
+* libav doc https://ffmpeg.org/doxygen/trunk/index.html
+* generic av format https://github.com/rvs/ffmpeg/blob/master/libavformat/output-example.c
+
 # Moving player to static
 
 ## Date: 2/3/24
