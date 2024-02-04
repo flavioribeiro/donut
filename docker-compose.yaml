@@ -12,20 +12,38 @@ services:
       - "8081:8081"
       - "8081:8081/udp"
 
-  origin: # simulating an srt origin live transmission
-    image: jrottenberg/ffmpeg:4.4-alpine
+  srt:
+    build:
+      context: .
+      dockerfile: Dockerfile-srt-live
     entrypoint: sh
-    command: "/scripts/ffmpeg_srt_live_listener.sh"
+    command: "./srt.sh"
+    working_dir: "/scripts"
     volumes:
       - "./scripts:/scripts"
     environment:
       - SRT_LISTENING_PORT=40052
-      - SRT_LISTENING_HOST=0.0.0.0
-      - SRT_LISTENING_LATENCY_US=400000
+      - SRT_UDP_TS_INPUT_HOST=0.0.0.0
+      - SRT_UDP_TS_INPUT_PORT=1234
     ports:
       - "40052:40052/udp"
     depends_on:
       - app
     links:
       - app
+
+  origin: # simulating an mpeg-ts upd origin live transmission
+    image: jrottenberg/ffmpeg:4.4-alpine
+    entrypoint: sh
+    command: "/scripts/ffmpeg_mpegts_udp.sh"
+    volumes:
+      - "./scripts:/scripts"
+    environment:
+      - SRT_INPUT_HOST=srt
+      - SRT_INPUT_PORT=1234
+      - PKT_SIZE=1316
+    depends_on:
+      - srt
+    links:
+      - srt
 

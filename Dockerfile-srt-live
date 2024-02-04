@@ -18,16 +18,5 @@ RUN \
   make && \
   make install
 
-# To find where the srt.h and libsrt.so were you can
-# find / -name srt.h
-# find / -name libsrt.so
-# inside the container docker run -it --rm -t <TAG_YOU_BUILT> bash
-ENV GOPROXY=direct
-ENV LD_LIBRARY_PATH="$LD_LIBRARY_PATH:${SRT_FOLDER}/lib/"
-ENV CGO_CFLAGS="-I${SRT_FOLDER}/include/"
-ENV CGO_LDFLAGS="-L${SRT_FOLDER}/lib/"
-
-COPY . ./donut
-WORKDIR ${WD}/donut
-RUN go build .
-CMD ["/usr/src/app/donut/donut", "--enable-ice-mux=true"]
+ENV PATH="${PATH}:/usr/src/app/srt" 
+WORKDIR ${WD}

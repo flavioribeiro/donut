@@ -1,0 +1,1 @@
+Initially copied from https://github.com/pion/webrtc/tree/master/examples/play-from-disk/jsfiddle
