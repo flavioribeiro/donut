@@ -82,6 +82,13 @@ const setupWebRTC = (setRemoteSDPfn) => {
   pc.oniceconnectionstatechange = e => log("ice state change: " + pc.iceConnectionState);
   pc.onicegatheringstatechange = e => log("gathering state change: " + pc.iceGatheringState);
   pc.onsignalingstatechange = e => log("signaling state change: " + pc.signalingState);
+  pc.onicecandidate = (e) => {
+    if (!e.candidate) {
+      return;
+    }
+    log("Emitting icecandidate " + e.candidate);
+    log("icecandidate " + JSON.stringify(e.candidate));
+  };
 
   // creating a local sdp offer
   pc.createOffer()
