@@ -1,10 +1,18 @@
+# Moving player to static
+
+## Date: 2/3/24
+### Hypothesis: It's easy to do experimentation with local player
+### Summary
+
+Copy and adapt code from https://github.com/flavioribeiro/donut-video into static/demo/
+
 # Investigating a potential memory leak
 
 ## Date: 2/2/24
-### Hyphotesis: There's a memory leak happening
+### Hypothesis: There's a memory leak happening
 ### Signs: pprof/allocs
 ![allocs profile print screen 1](imgs/entry_memory_leak/allocs_pprof001.svg "allocs profile print screen 1")
-### Sumary
+### Summary
 
 * Start the donut `make run`, 
 * Check the general profiling http://localhost:6060/debug/pprof/?debug=1

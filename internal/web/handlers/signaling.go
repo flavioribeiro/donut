@@ -81,7 +81,7 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 
 	metadataSender, err := h.webRTCController.CreateDataChannel(peer, entities.MetadataChannelID)
 	if err != nil {
-		h.l.Errorw("error while createing a web rtc data channel",
+		h.l.Errorw("error while creating a web rtc data channel",
 			"error", err,
 		)
 		return err
@@ -110,7 +110,7 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 		return err
 	}
 
-	go h.streamingController.Stream(entities.StreamParameters{
+	go h.streamingController.Stream(&entities.StreamParameters{
 		Cancel:        cancel,
 		Ctx:           ctx,
 		WebRTCConn:    peer,
