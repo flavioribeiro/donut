@@ -48,11 +48,6 @@ clang: error: linker command failed with exit code 1 (use -v to see invocation)
 You can try to use the [docker-compose](/README.md#run-using-docker-compose), but if you want to run it locally you must provide path to the linker.
 
 ```bash
-# Find where the headers and libraries files are located at. If you can't find, install them with brew or apt-get.
-# Feel free to replace the path after the find to roo[/] or any other suspicious place.
-sudo find /opt/homebrew/ -name srt.h
-sudo find /opt/ -name libsrt.a # libsrt.so for linux
-
-# Add the required flags so the compiler/linker can find the needed files.
-CGO_LDFLAGS="-L/opt/homebrew/Cellar/srt/1.5.3/lib -lsrt" CGO_CFLAGS="-I/opt/homebrew//Cellar/srt/1.5.3/include/" go run main.go helpers.go
+#  For MacOS
+CGO_LDFLAGS="-L$(brew --prefix srt)/lib -lsrt" CGO_CFLAGS="-I$(brew --prefix srt)/include/" go run main.go
 ```
