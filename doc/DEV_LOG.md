@@ -1,11 +1,17 @@
-# Adding audio
+# Add tests/CI/linter
+
+# Adding audio (WIP)
 
 ## Date: 2/4/24
 ### Summary: Adding audio track
 
+* Push directly vp8 and ogg through rtc (is it possible through SRT?)
+
 refs:
 * webrtc discussion https://github.com/pion/webrtc/discussions/1955
 * go webrtc example https://github.com/pion/webrtc/blob/master/examples/play-from-disk-renegotiation/main.go
+* (working) go webrtc same stream https://github.com/pion/webrtc/blob/v3.2.24/examples/play-from-disk/main.go#L88C39-L88C64
+* (working) https://jsfiddle.net/8kup9mvn/
 * webrtc discussion https://stackoverflow.com/questions/66243915/how-to-get-multiple-streams-from-webrtc-peerconnection
 * golang libav https://github.com/giorgisio/goav/blob/master/example/tutorial01.go#L69
 * libav transcoding example gshttps://github.com/FFmpeg/FFmpeg/blob/master/doc/examples/transcode.c#L158
@@ -14,6 +20,9 @@ refs:
 * example https://blog.mi.hdm-stuttgart.de/index.php/2018/03/21/livestreaming-with-libav-tutorial-part-2/
 * libav doc https://ffmpeg.org/doxygen/trunk/index.html
 * generic av format https://github.com/rvs/ffmpeg/blob/master/libavformat/output-example.c
+* mpegts example https://github.com/wakabayashik/mpegts-to-webrtc/blob/main/main.go
+* binding go https://github.com/asticode/go-astiav
+* network use https://github.com/asticode/go-astiav/issues/7
 
 # Moving player to static
 
