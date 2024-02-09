@@ -42,10 +42,9 @@ func (c *SrtMpegTs) StreamInfo(req *entities.RequestParams) (map[entities.Codec]
 	defer srtConnection.Close()
 
 	streamInfoMap := map[entities.Codec]entities.Stream{}
-	inboundMpegTsPacket := make([]byte, c.c.SRTReadBufferSizeBytes)
 
 	// probing mpeg-ts for N packets to find metadata
-	go c.fromSRTToWriterPipe(srtConnection, inboundMpegTsPacket, w, cancel)
+	go c.fromSRTToWriterPipe(srtConnection, w, cancel)
 
 	c.l.Info("probing has starting demuxing")
 
@@ -67,8 +66,12 @@ func (c *SrtMpegTs) StreamInfo(req *entities.RequestParams) (map[entities.Codec]
 	}
 }
 
-func (c *SrtMpegTs) fromSRTToWriterPipe(srtConnection *astisrt.Connection, inboundMpegTsPacket []byte, w *io.PipeWriter, cancel context.CancelFunc) {
+func (c *SrtMpegTs) fromSRTToWriterPipe(srtConnection *astisrt.Connection, w *io.PipeWriter, cancel context.CancelFunc) {
 	defer cancel()
+	defer w.Close()
+	defer srtConnection.Close()
+
+	inboundMpegTsPacket := make([]byte, c.c.SRTReadBufferSizeBytes)
 	c.l.Info("probing has started")
 
 	for i := 1; i < c.c.ProbingSize; i++ {

@@ -31,7 +31,7 @@ func FromMpegTsStreamTypeToType(st astits.StreamType) entities.MediaType {
 		return entities.VideoType
 	}
 	if st.IsAudio() {
-		return entities.AudioTyp
+		return entities.AudioType
 	}
 	return entities.UnknownType
 }

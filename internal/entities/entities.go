@@ -69,7 +69,7 @@ const (
 const (
 	UnknownType MediaType = "unknownMediaType"
 	VideoType   MediaType = "video"
-	AudioTyp    MediaType = "audio"
+	AudioType   MediaType = "audio"
 )
 
 type Stream struct {

@@ -4,8 +4,8 @@ run:
 test:
 	docker compose stop test && docker compose down test && docker compose run --rm test
 
-test-local:
-	./scripts/local_run_test.sh
+mac-test-local:
+	./scripts/mac_local_run_test.sh
 
 html-local-coverage:
 	go tool cover -html=coverage.out
