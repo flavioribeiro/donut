@@ -25,7 +25,7 @@ type FFmpegOutput struct {
 }
 
 var FFMPEG_LIVE_SRT_MPEG_TS_H264_AAC = testFFmpeg{
-	cmd: `
+	arguments: `
 	-hide_banner -loglevel verbose
     	-re -f lavfi -i testsrc2=size=1280x720:rate=30,format=yuv420p
     	-f lavfi -i sine=frequency=1000:sample_rate=44100
@@ -41,14 +41,14 @@ var FFMPEG_LIVE_SRT_MPEG_TS_H264_AAC = testFFmpeg{
 }
 
 type testFFmpeg struct {
-	cmd             string
+	arguments       string
 	expectedStreams map[entities.Codec]entities.Stream
 	cmdExec         *exec.Cmd
 	output          FFmpegOutput
 }
 
 func (t *testFFmpeg) Start() error {
-	t.cmdExec = exec.Command("ffmpeg", prepareFFmpegParameters(t.cmd)...)
+	t.cmdExec = exec.Command("ffmpeg", prepareFFmpegParameters(t.arguments)...)
 	// Useful for debugging
 	// t.cmdExec.Stdout = os.Stdout
 	// t.cmdExec.Stderr = os.Stderr
