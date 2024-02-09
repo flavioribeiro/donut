@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/flavioribeiro/donut/internal/controllers"
+	"github.com/flavioribeiro/donut/internal/controllers/probers"
 	"github.com/flavioribeiro/donut/internal/entities"
 	"go.uber.org/zap"
 )
@@ -16,6 +17,7 @@ type SignalingHandler struct {
 	webRTCController    *controllers.WebRTCController
 	srtController       *controllers.SRTController
 	streamingController *controllers.StreamingController
+	srtMpegTSprober     *probers.SrtMpegTs
 }
 
 func NewSignalingHandler(
@@ -24,6 +26,7 @@ func NewSignalingHandler(
 	webRTCController *controllers.WebRTCController,
 	srtController *controllers.SRTController,
 	streamingController *controllers.StreamingController,
+	srtMpegTSprober *probers.SrtMpegTs,
 ) *SignalingHandler {
 	return &SignalingHandler{
 		c:                   c,
@@ -31,6 +34,7 @@ func NewSignalingHandler(
 		webRTCController:    webRTCController,
 		srtController:       srtController,
 		streamingController: streamingController,
+		srtMpegTSprober:     srtMpegTSprober,
 	}
 }
 
@@ -64,12 +68,22 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 		return err
 	}
 
+	data, err := h.srtMpegTSprober.StreamInfo(&params)
+	if err != nil {
+		h.l.Errorw("error while probing",
+			"error", err,
+		)
+		return err
+	}
+	h.l.Infow("stream info",
+		"data", data,
+	)
 	// TODO: create tracks according with SRT available streams
 	// Create a video track
 	videoTrack, err := h.webRTCController.CreateTrack(
 		peer,
-		entities.Track{
-			Type: entities.H264,
+		entities.Stream{
+			Codec: entities.H264,
 		}, "video", params.SRTStreamID,
 	)
 	if err != nil {
@@ -102,7 +116,7 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 		return err
 	}
 
-	srtConnection, err := h.srtController.Connect(cancel, params)
+	srtConnection, err := h.srtController.Connect(cancel, &params)
 	if err != nil {
 		h.l.Errorw("error while connecting to an srt server",
 			"error", err,

@@ -57,14 +57,25 @@ type Message struct {
 	Message string
 }
 
-type TrackType string
+type Codec string
+type MediaType string
 
 const (
-	H264 TrackType = "h264"
+	UnknownCodec Codec = "unknownCodec"
+	H264         Codec = "h264"
+	AAC          Codec = "aac"
 )
 
-type Track struct {
-	Type TrackType
+const (
+	UnknownType MediaType = "unknownMediaType"
+	VideoType   MediaType = "video"
+	AudioTyp    MediaType = "audio"
+)
+
+type Stream struct {
+	Codec Codec
+	Type  MediaType
+	Id    uint16
 }
 
 type Cue struct {
@@ -95,5 +106,10 @@ type Config struct {
 	StunServers        []string `required:"true" default:"stun:stun.l.google.com:19302"`
 
 	SRTConnectionLatencyMS int32 `required:"true" default:"300"`
-	SRTReadBufferSizeBytes int   `required:"true" default:"1316"`
+	// MPEG-TS consists of single units of 188 bytes. Multiplying 188*7 we get 1316,
+	// which is the maximum product of 188 that is less than MTU 1500 (188*8=1504)
+	// ref https://github.com/Haivision/srt/blob/master/docs/features/live-streaming.md#transmitting-mpeg-ts-binary-protocol-over-srt
+	SRTReadBufferSizeBytes int `required:"true" default:"1316"`
+
+	ProbingSize int `required:"true" default:"120"`
 }

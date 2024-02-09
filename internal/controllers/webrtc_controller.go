@@ -69,7 +69,7 @@ func (c *WebRTCController) CreatePeerConnection(cancel context.CancelFunc) (*web
 	return peerConnection, nil
 }
 
-func (c *WebRTCController) CreateTrack(peer *webrtc.PeerConnection, track entities.Track, id string, streamId string) (*webrtc.TrackLocalStaticSample, error) {
+func (c *WebRTCController) CreateTrack(peer *webrtc.PeerConnection, track entities.Stream, id string, streamId string) (*webrtc.TrackLocalStaticSample, error) {
 	codecCapability := mapper.FromTrackToRTPCodecCapability(track)
 	webRTCtrack, err := webrtc.NewTrackLocalStaticSample(codecCapability, id, streamId)
 	if err != nil {

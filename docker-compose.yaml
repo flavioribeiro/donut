@@ -20,7 +20,7 @@ services:
     working_dir: "/app"
     volumes:
       - "./:/app/"
-    command: "go test ./..."
+    command: "go test -v ./..."
 
   lint:
     build:

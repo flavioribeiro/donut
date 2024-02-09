@@ -23,6 +23,7 @@ refs:
 * mpegts example https://github.com/wakabayashik/mpegts-to-webrtc/blob/main/main.go
 * binding go https://github.com/asticode/go-astiav
 * network use https://github.com/asticode/go-astiav/issues/7
+* srt live https://github.com/Haivision/srt/blob/master/docs/features/live-streaming.md
 
 # Moving player to static
 

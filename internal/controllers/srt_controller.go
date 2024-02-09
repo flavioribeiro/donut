@@ -51,8 +51,8 @@ func NewSRTController(c *entities.Config, l *zap.SugaredLogger, lc fx.Lifecycle)
 	}, nil
 }
 
-func (c *SRTController) Connect(cancel context.CancelFunc, params entities.RequestParams) (*astisrt.Connection, error) {
-	c.l.Infow("trying to connect srt")
+func (c *SRTController) Connect(cancel context.CancelFunc, params *entities.RequestParams) (*astisrt.Connection, error) {
+	c.l.Info("trying to connect srt")
 
 	if err := params.Valid(); err != nil {
 		return nil, err
