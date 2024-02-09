@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 
+	astisrt "github.com/asticode/go-astisrt/pkg"
 	"github.com/asticode/go-astits"
 	"github.com/flavioribeiro/donut/internal/controllers"
 	"github.com/flavioribeiro/donut/internal/entities"
@@ -43,59 +44,73 @@ func (c *SrtMpegTs) StreamInfo(req *entities.RequestParams) (map[entities.Codec]
 	streamInfoMap := map[entities.Codec]entities.Stream{}
 	inboundMpegTsPacket := make([]byte, c.c.SRTReadBufferSizeBytes)
 
-	probingSize := 120
 	// probing mpeg-ts for N packets to find metadata
-	c.l.Infow("probing has started")
-	go func() {
-		for i := 1; i < probingSize; i++ {
-			n, err := srtConnection.Read(inboundMpegTsPacket)
-			if err != nil {
-				c.l.Errorw("str conn failed to write data to buffer",
-					"error", err,
-				)
-				break
-			}
+	go c.fromSRTToWriterPipe(srtConnection, inboundMpegTsPacket, w, cancel)
 
-			if _, err := w.Write(inboundMpegTsPacket[:n]); err != nil {
-				c.l.Errorw("failed to write mpeg-ts into the pipe",
-					"error", err,
-				)
-				break
-			}
-		}
-		c.l.Info("done probing")
-		cancel()
-	}()
 	c.l.Info("probing has starting demuxing")
 
 	mpegTSDemuxer := astits.NewDemuxer(ctx, r)
 	for {
 		select {
 		case <-ctx.Done():
-			c.l.Errorw("streaming has stopped")
+			c.l.Errorw("probing has stopped")
 			return streamInfoMap, nil
 		default:
-			mpegTSDemuxData, err := mpegTSDemuxer.NextData()
-
-			if err != nil {
-				if !errors.Is(err, context.Canceled) {
-					c.l.Errorw("failed to demux mpeg-ts",
-						"error", err,
-					)
-					return streamInfoMap, err
+			stop, err := c.fillStreamInfoFromMpegTS(streamInfoMap, mpegTSDemuxer)
+			if stop {
+				if err != nil {
+					return nil, err
 				}
 				return streamInfoMap, nil
 			}
+		}
+	}
+}
 
-			if mpegTSDemuxData.PMT != nil {
+func (c *SrtMpegTs) fromSRTToWriterPipe(srtConnection *astisrt.Connection, inboundMpegTsPacket []byte, w *io.PipeWriter, cancel context.CancelFunc) {
+	defer cancel()
+	c.l.Info("probing has started")
 
-				for _, es := range mpegTSDemuxData.PMT.ElementaryStreams {
-					streamInfoMap[mapper.FromMpegTsStreamTypeToCodec(es.StreamType)] = entities.Stream{
-						Codec: mapper.FromMpegTsStreamTypeToCodec(es.StreamType),
-						Type:  mapper.FromMpegTsStreamTypeToType(es.StreamType),
-					}
-				}
+	for i := 1; i < c.c.ProbingSize; i++ {
+		n, err := srtConnection.Read(inboundMpegTsPacket)
+		if err != nil {
+			c.l.Errorw("str conn failed to write data to buffer",
+				"error", err,
+			)
+			break
+		}
+
+		if _, err := w.Write(inboundMpegTsPacket[:n]); err != nil {
+			c.l.Errorw("failed to write mpeg-ts into the pipe",
+				"error", err,
+			)
+			break
+		}
+	}
+	c.l.Info("done probing")
+}
+
+func (c *SrtMpegTs) fillStreamInfoFromMpegTS(streamInfo map[entities.Codec]entities.Stream, mpegTSDemuxer *astits.Demuxer) (bool, error) {
+	mpegTSDemuxData, err := mpegTSDemuxer.NextData()
+
+	if err != nil {
+		if !errors.Is(err, context.Canceled) {
+			c.l.Errorw("failed to demux mpeg-ts",
+				"error", err,
+			)
+			return true, err
+		}
+		return true, nil
+	}
+
+	if mpegTSDemuxData.PMT != nil {
+
+		for _, es := range mpegTSDemuxData.PMT.ElementaryStreams {
+			streamInfo[mapper.FromMpegTsStreamTypeToCodec(es.StreamType)] = entities.Stream{
+				Codec: mapper.FromMpegTsStreamTypeToCodec(es.StreamType),
+				Type:  mapper.FromMpegTsStreamTypeToType(es.StreamType),
 			}
 		}
 	}
+	return false, nil
 }
