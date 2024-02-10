@@ -63,6 +63,7 @@ type MediaType string
 const (
 	UnknownCodec Codec = "unknownCodec"
 	H264         Codec = "h264"
+	H265         Codec = "h265"
 	AAC          Codec = "aac"
 )
 

@@ -14,17 +14,20 @@ type WebRTCController struct {
 	c   *entities.Config
 	l   *zap.SugaredLogger
 	api *webrtc.API
+	m   *mapper.Mapper
 }
 
 func NewWebRTCController(
 	c *entities.Config,
 	l *zap.SugaredLogger,
 	api *webrtc.API,
+	m *mapper.Mapper,
 ) *WebRTCController {
 	return &WebRTCController{
 		c:   c,
 		l:   l,
 		api: api,
+		m:   m,
 	}
 }
 
@@ -70,7 +73,7 @@ func (c *WebRTCController) CreatePeerConnection(cancel context.CancelFunc) (*web
 }
 
 func (c *WebRTCController) CreateTrack(peer *webrtc.PeerConnection, track entities.Stream, id string, streamId string) (*webrtc.TrackLocalStaticSample, error) {
-	codecCapability := mapper.FromTrackToRTPCodecCapability(track)
+	codecCapability := c.m.FromTrackToRTPCodecCapability(track)
 	webRTCtrack, err := webrtc.NewTrackLocalStaticSample(codecCapability, id, streamId)
 	if err != nil {
 		return nil, err

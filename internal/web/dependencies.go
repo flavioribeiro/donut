@@ -6,6 +6,7 @@ import (
 	"github.com/flavioribeiro/donut/internal/controllers"
 	"github.com/flavioribeiro/donut/internal/controllers/probers"
 	"github.com/flavioribeiro/donut/internal/entities"
+	"github.com/flavioribeiro/donut/internal/mapper"
 	"github.com/flavioribeiro/donut/internal/web/handlers"
 	"github.com/kelseyhightower/envconfig"
 	"go.uber.org/fx"
@@ -44,6 +45,9 @@ func Dependencies(enableICEMux bool) fx.Option {
 		fx.Provide(controllers.NewWebRTCMediaEngine),
 		fx.Provide(controllers.NewWebRTCAPI),
 		fx.Provide(probers.NewSrtMpegTs),
+
+		// Mappers
+		fx.Provide(mapper.NewMapper),
 
 		// Logging, Config constructors
 		fx.Provide(func() *zap.SugaredLogger {

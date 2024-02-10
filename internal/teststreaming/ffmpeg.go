@@ -27,14 +27,31 @@ type FFmpegOutput struct {
 var FFMPEG_LIVE_SRT_MPEG_TS_H264_AAC = testFFmpeg{
 	arguments: `
 	-hide_banner -loglevel verbose
-    	-re -f lavfi -i testsrc2=size=1280x720:rate=30,format=yuv420p
+    	-re -f lavfi -i testsrc2=size=512x288:rate=30,format=yuv420p
     	-f lavfi -i sine=frequency=1000:sample_rate=44100
     	-c:v libx264 -preset veryfast -tune zerolatency -profile:v baseline
-    	-b:v 1000k -bufsize 2000k -x264opts keyint=30:min-keyint=30:scenecut=-1
-    	-f mpegts srt://0.0.0.0:45678?mode=listener&smoother=live&transtype=live
+    	-b:v 500k -bufsize 1000k -x264opts keyint=30:min-keyint=30:scenecut=-1		
+    	-c:a aac -b:a 96k -f mpegts srt://0.0.0.0:45678?mode=listener&smoother=live&transtype=live
 	`,
 	expectedStreams: map[entities.Codec]entities.Stream{
 		entities.H264: entities.Stream{Codec: entities.H264, Type: entities.VideoType},
+		entities.AAC:  entities.Stream{Codec: entities.AAC, Type: entities.AudioType},
+	},
+	output: FFmpegOutput{Host: "127.0.0.1", Port: 45678},
+}
+
+// ref https://x265.readthedocs.io/en/stable/cli.html#executable-options
+var FFMPEG_LIVE_SRT_MPEG_TS_H265_AAC = testFFmpeg{
+	arguments: `
+	-hide_banner -loglevel verbose
+    	-re -f lavfi -i testsrc2=size=512x288:rate=30,format=yuv420p
+    	-f lavfi -i sine=frequency=1000:sample_rate=44100
+    	-c:v libx265 -preset veryfast -profile:v main
+    	-b:v 500k -bufsize 1000k -x265-params keyint=30:min-keyint=30:scenecut=0		
+    	-c:a aac -b:a 96k -f mpegts srt://0.0.0.0:45678?mode=listener&smoother=live&transtype=live
+	`,
+	expectedStreams: map[entities.Codec]entities.Stream{
+		entities.H265: entities.Stream{Codec: entities.H265, Type: entities.VideoType},
 		entities.AAC:  entities.Stream{Codec: entities.AAC, Type: entities.AudioType},
 	},
 	output: FFmpegOutput{Host: "127.0.0.1", Port: 45678},
@@ -58,10 +75,11 @@ func (t *testFFmpeg) Start() error {
 			if strings.Contains(err.Error(), "signal: killed") {
 				return
 			}
-			log.Fatalln("XXXXXXXXXXXX Error running ffmpeg XXXXXXXXXXXX", err.Error())
+			log.Fatalln("XXXXXXXXXXXX error while running ffmpeg XXXXXXXXXXXX", err.Error())
 			return
 		}
 	}()
+	// TODO: check the output to determine whether the ffmpeg is ready to accept connections
 	time.Sleep(ffmpeg_startup)
 	return nil
 }

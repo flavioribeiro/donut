@@ -1,7 +1,9 @@
 run:
-	docker-compose stop && docker-compose down && docker-compose build && docker-compose up origin srt app
+	docker compose stop && docker compose down && docker compose build && docker compose up origin srt app
 
 test:
+	# in case you need to re-build it
+	# docker compose stop test && docker compose down test && docker compose build test && docker compose run --rm test
 	docker compose stop test && docker compose down test && docker compose run --rm test
 
 mac-test-local:

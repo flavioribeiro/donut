@@ -17,13 +17,15 @@ type SrtMpegTs struct {
 	c             *entities.Config
 	l             *zap.SugaredLogger
 	srtController *controllers.SRTController
+	m             *mapper.Mapper
 }
 
-func NewSrtMpegTs(c *entities.Config, l *zap.SugaredLogger, srtController *controllers.SRTController) *SrtMpegTs {
+func NewSrtMpegTs(c *entities.Config, l *zap.SugaredLogger, srtController *controllers.SRTController, m *mapper.Mapper) *SrtMpegTs {
 	return &SrtMpegTs{
 		c:             c,
 		l:             l,
 		srtController: srtController,
+		m:             m,
 	}
 }
 
@@ -109,10 +111,7 @@ func (c *SrtMpegTs) fillStreamInfoFromMpegTS(streamInfo map[entities.Codec]entit
 	if mpegTSDemuxData.PMT != nil {
 
 		for _, es := range mpegTSDemuxData.PMT.ElementaryStreams {
-			streamInfo[mapper.FromMpegTsStreamTypeToCodec(es.StreamType)] = entities.Stream{
-				Codec: mapper.FromMpegTsStreamTypeToCodec(es.StreamType),
-				Type:  mapper.FromMpegTsStreamTypeToType(es.StreamType),
-			}
+			streamInfo[c.m.FromMpegTsStreamTypeToCodec(es.StreamType)] = c.m.FromStreamTypeToEntityStream(es.StreamType)
 		}
 	}
 	return false, nil
