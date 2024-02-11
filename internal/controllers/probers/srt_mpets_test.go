@@ -26,6 +26,7 @@ func setupController(t *testing.T) *probers.SrtMpegTs {
 }
 
 func TestSrtMpegTs_StreamInfo(t *testing.T) {
+	t.Parallel()
 	ffmpeg := teststreaming.FFMPEG_LIVE_SRT_MPEG_TS_H264_AAC
 
 	defer ffmpeg.Stop()
@@ -41,10 +42,11 @@ func TestSrtMpegTs_StreamInfo(t *testing.T) {
 
 	assert.Nil(t, err)
 	assert.NotNil(t, streamInfo)
-	assert.Equal(t, ffmpeg.ExpectedStreams(), streamInfo.Streams)
+	assert.ElementsMatch(t, ffmpeg.ExpectedStreams(), streamInfo.Streams)
 }
 
 func TestSrtMpegTs_StreamInfo_265(t *testing.T) {
+	t.Parallel()
 	ffmpeg := teststreaming.FFMPEG_LIVE_SRT_MPEG_TS_H265_AAC
 
 	defer ffmpeg.Stop()
@@ -60,5 +62,5 @@ func TestSrtMpegTs_StreamInfo_265(t *testing.T) {
 
 	assert.Nil(t, err)
 	assert.NotNil(t, streamInfo)
-	assert.Equal(t, ffmpeg.ExpectedStreams(), streamInfo.Streams)
+	assert.ElementsMatch(t, ffmpeg.ExpectedStreams(), streamInfo.Streams)
 }

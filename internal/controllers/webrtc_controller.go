@@ -118,18 +118,6 @@ func (c *WebRTCController) GatheringWebRTC(peer *webrtc.PeerConnection) (*webrtc
 	return peer.LocalDescription(), nil
 }
 
-func (c *WebRTCController) Get(desc webrtc.SessionDescription) error {
-	_, err := desc.Unmarshal()
-	if err != nil {
-		return err
-	}
-	// sdpDesc.Attributes
-	// * serverMediaSupport
-	// * clientMediaSupport
-	// * ffmpeg.libav(transcode(server,client))
-	return nil
-}
-
 func NewWebRTCSettingsEngine(c *entities.Config, tcpListener net.Listener, udpListener net.PacketConn) webrtc.SettingEngine {
 	settingEngine := webrtc.SettingEngine{}
 

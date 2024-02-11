@@ -64,7 +64,10 @@ const (
 	UnknownCodec Codec = "unknownCodec"
 	H264         Codec = "h264"
 	H265         Codec = "h265"
+	VP9          Codec = "vp9"
+	AV1          Codec = "av1"
 	AAC          Codec = "aac"
+	Opus         Codec = "opus"
 )
 
 const (

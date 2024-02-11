@@ -8,6 +8,7 @@ import (
 	"github.com/flavioribeiro/donut/internal/controllers"
 	"github.com/flavioribeiro/donut/internal/controllers/probers"
 	"github.com/flavioribeiro/donut/internal/entities"
+	"github.com/flavioribeiro/donut/internal/mapper"
 	"go.uber.org/zap"
 )
 
@@ -18,6 +19,7 @@ type SignalingHandler struct {
 	srtController       *controllers.SRTController
 	streamingController *controllers.StreamingController
 	srtMpegTSprober     *probers.SrtMpegTs
+	mapper              *mapper.Mapper
 }
 
 func NewSignalingHandler(
@@ -27,6 +29,7 @@ func NewSignalingHandler(
 	srtController *controllers.SRTController,
 	streamingController *controllers.StreamingController,
 	srtMpegTSprober *probers.SrtMpegTs,
+	mapper *mapper.Mapper,
 ) *SignalingHandler {
 	return &SignalingHandler{
 		c:                   c,
@@ -35,6 +38,7 @@ func NewSignalingHandler(
 		srtController:       srtController,
 		streamingController: streamingController,
 		srtMpegTSprober:     srtMpegTSprober,
+		mapper:              mapper,
 	}
 }
 
@@ -68,15 +72,27 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 		return err
 	}
 
+	// real stream info from server
 	serverStreamInfo, err := h.srtMpegTSprober.StreamInfo(&params)
 	if err != nil {
-		h.l.Errorw("error while probing",
+		h.l.Errorw("error while fetching server stream info",
 			"error", err,
 		)
 		return err
 	}
-	h.l.Infow("source stream info",
-		"srcStreamInfo", serverStreamInfo,
+	h.l.Infow("server stream info",
+		"serverStreamInfo", serverStreamInfo,
+	)
+	// client stream info support from the client (browser)
+	clientStreamInfo, err := h.mapper.FromWebRTCSessionDescriptionToStreamInfo(params.Offer)
+	if err != nil {
+		h.l.Errorw("error while fetching server stream info",
+			"error", err,
+		)
+		return err
+	}
+	h.l.Infow("client stream info",
+		"clientStreamInfo", clientStreamInfo,
 	)
 	// TODO: create tracks according with SRT available streams
 	// Create a video track

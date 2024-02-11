@@ -131,8 +131,9 @@ const formattedNow = () => {
 
 const log = (msg, level = "info") => {
   const el = document.createElement("p")
-  if (level === "error") {
+  if (level === "error" || msg.includes("failed") || msg.includes("error")) {
     el.style = "color: red;background-color: yellow;";
+    level = "error"
   }
 
   el.innerText = "[[" + level.toUpperCase().padEnd(5, ' ') + "]] " + formattedNow() + " : " + msg

@@ -79,7 +79,6 @@ func (c *SrtMpegTs) streamInfoMap(req *entities.RequestParams) (map[entities.Cod
 			}
 		}
 	}
-	return nil, nil
 }
 
 func (c *SrtMpegTs) fromSRTToWriterPipe(srtConnection *astisrt.Connection, w *io.PipeWriter, cancel context.CancelFunc) {
