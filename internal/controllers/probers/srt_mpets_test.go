@@ -33,16 +33,15 @@ func TestSrtMpegTs_StreamInfo(t *testing.T) {
 
 	controller = setupController(t)
 
-	streams, err := controller.StreamInfo(&entities.RequestParams{
+	streamInfo, err := controller.StreamInfo(&entities.RequestParams{
 		SRTHost:     ffmpeg.Output().Host,
 		SRTPort:     uint16(ffmpeg.Output().Port),
 		SRTStreamID: "test_id",
 	})
 
 	assert.Nil(t, err)
-	assert.NotNil(t, streams)
-	assert.Equal(t, ffmpeg.ExpectedStreams()[entities.H264], streams[entities.H264])
-	assert.Equal(t, ffmpeg.ExpectedStreams()[entities.AAC], streams[entities.AAC])
+	assert.NotNil(t, streamInfo)
+	assert.Equal(t, ffmpeg.ExpectedStreams(), streamInfo.Streams)
 }
 
 func TestSrtMpegTs_StreamInfo_265(t *testing.T) {
@@ -53,14 +52,13 @@ func TestSrtMpegTs_StreamInfo_265(t *testing.T) {
 
 	controller = setupController(t)
 
-	streams, err := controller.StreamInfo(&entities.RequestParams{
+	streamInfo, err := controller.StreamInfo(&entities.RequestParams{
 		SRTHost:     ffmpeg.Output().Host,
 		SRTPort:     uint16(ffmpeg.Output().Port),
 		SRTStreamID: "test_id",
 	})
 
 	assert.Nil(t, err)
-	assert.NotNil(t, streams)
-	assert.Equal(t, ffmpeg.ExpectedStreams()[entities.H265], streams[entities.H265])
-	assert.Equal(t, ffmpeg.ExpectedStreams()[entities.AAC], streams[entities.AAC])
+	assert.NotNil(t, streamInfo)
+	assert.Equal(t, ffmpeg.ExpectedStreams(), streamInfo.Streams)
 }

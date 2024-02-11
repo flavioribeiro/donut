@@ -16,7 +16,7 @@ const (
 type FFmpeg interface {
 	Start() error
 	Stop() error
-	ExpectedStreams() map[entities.Codec]entities.Stream
+	ExpectedStreams() []entities.Stream
 	Output() FFmpegOutput
 }
 type FFmpegOutput struct {
@@ -24,49 +24,16 @@ type FFmpegOutput struct {
 	Port int
 }
 
-var FFMPEG_LIVE_SRT_MPEG_TS_H264_AAC = testFFmpeg{
-	arguments: `
-	-hide_banner -loglevel verbose
-    	-re -f lavfi -i testsrc2=size=512x288:rate=30,format=yuv420p
-    	-f lavfi -i sine=frequency=1000:sample_rate=44100
-    	-c:v libx264 -preset veryfast -tune zerolatency -profile:v baseline
-    	-b:v 500k -bufsize 1000k -x264opts keyint=30:min-keyint=30:scenecut=-1		
-    	-c:a aac -b:a 96k -f mpegts srt://0.0.0.0:45678?mode=listener&smoother=live&transtype=live
-	`,
-	expectedStreams: map[entities.Codec]entities.Stream{
-		entities.H264: entities.Stream{Codec: entities.H264, Type: entities.VideoType},
-		entities.AAC:  entities.Stream{Codec: entities.AAC, Type: entities.AudioType},
-	},
-	output: FFmpegOutput{Host: "127.0.0.1", Port: 45678},
-}
-
-// ref https://x265.readthedocs.io/en/stable/cli.html#executable-options
-var FFMPEG_LIVE_SRT_MPEG_TS_H265_AAC = testFFmpeg{
-	arguments: `
-	-hide_banner -loglevel verbose
-    	-re -f lavfi -i testsrc2=size=512x288:rate=30,format=yuv420p
-    	-f lavfi -i sine=frequency=1000:sample_rate=44100
-    	-c:v libx265 -preset veryfast -profile:v main
-    	-b:v 500k -bufsize 1000k -x265-params keyint=30:min-keyint=30:scenecut=0		
-    	-c:a aac -b:a 96k -f mpegts srt://0.0.0.0:45678?mode=listener&smoother=live&transtype=live
-	`,
-	expectedStreams: map[entities.Codec]entities.Stream{
-		entities.H265: entities.Stream{Codec: entities.H265, Type: entities.VideoType},
-		entities.AAC:  entities.Stream{Codec: entities.AAC, Type: entities.AudioType},
-	},
-	output: FFmpegOutput{Host: "127.0.0.1", Port: 45678},
-}
-
 type testFFmpeg struct {
 	arguments       string
-	expectedStreams map[entities.Codec]entities.Stream
+	expectedStreams []entities.Stream
 	cmdExec         *exec.Cmd
 	output          FFmpegOutput
 }
 
 func (t *testFFmpeg) Start() error {
 	t.cmdExec = exec.Command("ffmpeg", prepareFFmpegParameters(t.arguments)...)
-	// Useful for debugging
+	// For debugging:
 	// t.cmdExec.Stdout = os.Stdout
 	// t.cmdExec.Stderr = os.Stderr
 
@@ -95,7 +62,7 @@ func (t *testFFmpeg) Stop() error {
 	return nil
 }
 
-func (t *testFFmpeg) ExpectedStreams() map[entities.Codec]entities.Stream {
+func (t *testFFmpeg) ExpectedStreams() []entities.Stream {
 	return t.expectedStreams
 }
 

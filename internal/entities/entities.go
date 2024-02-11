@@ -79,6 +79,10 @@ type Stream struct {
 	Id    uint16
 }
 
+type StreamInfo struct {
+	Streams []Stream
+}
+
 type Cue struct {
 	Type      string
 	StartTime int64

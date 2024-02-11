@@ -29,7 +29,21 @@ func NewSrtMpegTs(c *entities.Config, l *zap.SugaredLogger, srtController *contr
 	}
 }
 
-func (c *SrtMpegTs) StreamInfo(req *entities.RequestParams) (map[entities.Codec]entities.Stream, error) {
+// StreamInfo connects to the SRT stream and probe N packets to discovery the media properties.
+func (c *SrtMpegTs) StreamInfo(req *entities.RequestParams) (*entities.StreamInfo, error) {
+	streamInfoMap, err := c.streamInfoMap(req)
+	if err != nil {
+		return nil, err
+	}
+
+	si := &entities.StreamInfo{}
+	for _, v := range streamInfoMap {
+		si.Streams = append(si.Streams, v)
+	}
+	return si, err
+}
+
+func (c *SrtMpegTs) streamInfoMap(req *entities.RequestParams) (map[entities.Codec]entities.Stream, error) {
 	r, w := io.Pipe()
 	defer r.Close()
 	defer w.Close()
@@ -45,7 +59,6 @@ func (c *SrtMpegTs) StreamInfo(req *entities.RequestParams) (map[entities.Codec]
 
 	streamInfoMap := map[entities.Codec]entities.Stream{}
 
-	// probing mpeg-ts for N packets to find metadata
 	go c.fromSRTToWriterPipe(srtConnection, w, cancel)
 
 	c.l.Info("probing has starting demuxing")
@@ -66,6 +79,7 @@ func (c *SrtMpegTs) StreamInfo(req *entities.RequestParams) (map[entities.Codec]
 			}
 		}
 	}
+	return nil, nil
 }
 
 func (c *SrtMpegTs) fromSRTToWriterPipe(srtConnection *astisrt.Connection, w *io.PipeWriter, cancel context.CancelFunc) {

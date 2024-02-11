@@ -20,6 +20,8 @@ func (m *Mapper) FromTrackToRTPCodecCapability(track entities.Stream) webrtc.RTP
 
 	if track.Codec == entities.H264 {
 		response.MimeType = webrtc.MimeTypeH264
+	} else if track.Codec == entities.H265 {
+		response.MimeType = webrtc.MimeTypeH265
 	} else {
 		m.l.Info("[[[[TODO: not implemented]]]]", track)
 	}

@@ -68,15 +68,15 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 		return err
 	}
 
-	data, err := h.srtMpegTSprober.StreamInfo(&params)
+	serverStreamInfo, err := h.srtMpegTSprober.StreamInfo(&params)
 	if err != nil {
 		h.l.Errorw("error while probing",
 			"error", err,
 		)
 		return err
 	}
-	h.l.Infow("stream info",
-		"data", data,
+	h.l.Infow("source stream info",
+		"srcStreamInfo", serverStreamInfo,
 	)
 	// TODO: create tracks according with SRT available streams
 	// Create a video track
