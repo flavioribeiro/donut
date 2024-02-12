@@ -95,6 +95,9 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 		"clientStreamInfo", clientStreamInfo,
 	)
 	// TODO: create tracks according with SRT available streams
+	// for st := range serverStreamInfo.Streams {
+	// }
+
 	// Create a video track
 	videoTrack, err := h.webRTCController.CreateTrack(
 		peer,
@@ -108,6 +111,20 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 		)
 		return err
 	}
+
+	// Create a audio track
+	// audioTrack, err := h.webRTCController.CreateTrack(
+	// 	peer,
+	// 	entities.Stream{
+	// 		Codec: entities.AAC,
+	// 	}, "audio", params.SRTStreamID,
+	// )
+	// if err != nil {
+	// 	h.l.Errorw("error while creating a web rtc track",
+	// 		"error", err,
+	// 	)
+	// 	return err
+	// }
 
 	metadataSender, err := h.webRTCController.CreateDataChannel(peer, entities.MetadataChannelID)
 	if err != nil {
@@ -147,6 +164,7 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 		SRTConnection: srtConnection,
 		VideoTrack:    videoTrack,
 		MetadataTrack: metadataSender,
+		StreamInfo:    serverStreamInfo,
 	})
 
 	w.Header().Set("Content-Type", "application/json")

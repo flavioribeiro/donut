@@ -122,9 +122,8 @@ func (c *SrtMpegTs) fillStreamInfoFromMpegTS(streamInfo map[entities.Codec]entit
 	}
 
 	if mpegTSDemuxData.PMT != nil {
-
 		for _, es := range mpegTSDemuxData.PMT.ElementaryStreams {
-			streamInfo[c.m.FromMpegTsStreamTypeToCodec(es.StreamType)] = c.m.FromStreamTypeToEntityStream(es.StreamType)
+			streamInfo[c.m.FromMpegTsStreamTypeToCodec(es.StreamType)] = c.m.FromStreamTypeToEntityStream(es)
 		}
 	}
 	return false, nil

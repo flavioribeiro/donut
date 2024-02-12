@@ -5,6 +5,7 @@ import (
 
 	"github.com/flavioribeiro/donut/internal/controllers"
 	"github.com/flavioribeiro/donut/internal/controllers/probers"
+	"github.com/flavioribeiro/donut/internal/controllers/streammiddlewares"
 	"github.com/flavioribeiro/donut/internal/entities"
 	"github.com/flavioribeiro/donut/internal/mapper"
 	"github.com/flavioribeiro/donut/internal/web/handlers"
@@ -45,6 +46,10 @@ func Dependencies(enableICEMux bool) fx.Option {
 		fx.Provide(controllers.NewWebRTCMediaEngine),
 		fx.Provide(controllers.NewWebRTCAPI),
 		fx.Provide(probers.NewSrtMpegTs),
+
+		// Stream middlewares
+		fx.Provide(streammiddlewares.NewStreamInfo),
+		fx.Provide(streammiddlewares.NewEIA608),
 
 		// Mappers
 		fx.Provide(mapper.NewMapper),

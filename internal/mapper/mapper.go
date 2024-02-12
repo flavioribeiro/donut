@@ -9,6 +9,7 @@ import (
 	"go.uber.org/zap"
 )
 
+// TODO: split mapper by subject (either by files alone or new modules)
 type Mapper struct {
 	l *zap.SugaredLogger
 }
@@ -56,11 +57,16 @@ func (m *Mapper) FromMpegTsStreamTypeToType(st astits.StreamType) entities.Media
 	return entities.UnknownType
 }
 
-func (m *Mapper) FromStreamTypeToEntityStream(st astits.StreamType) entities.Stream {
+func (m *Mapper) FromStreamTypeToEntityStream(es *astits.PMTElementaryStream) entities.Stream {
 	return entities.Stream{
-		Codec: m.FromMpegTsStreamTypeToCodec(st),
-		Type:  m.FromMpegTsStreamTypeToType(st),
+		Codec: m.FromMpegTsStreamTypeToCodec(es.StreamType),
+		Type:  m.FromMpegTsStreamTypeToType(es.StreamType),
+		Id:    m.FromMpegTsStreamTypeToID(es),
 	}
+}
+
+func (m *Mapper) FromMpegTsStreamTypeToID(es *astits.PMTElementaryStream) uint16 {
+	return es.ElementaryPID
 }
 
 func (m *Mapper) FromWebRTCSessionDescriptionToStreamInfo(desc webrtc.SessionDescription) (*entities.StreamInfo, error) {
@@ -133,4 +139,21 @@ func (m *Mapper) FromWebRTCSessionDescriptionToStreamInfo(desc webrtc.SessionDes
 		}
 	}
 	return result, nil
+}
+
+func (m *Mapper) FromStreamInfoToEntityMessages(si *entities.StreamInfo) []entities.Message {
+	var result []entities.Message
+
+	for _, s := range si.Streams {
+		result = append(result, m.FromStreamToEntityMessage(s))
+	}
+
+	return result
+}
+
+func (m *Mapper) FromStreamToEntityMessage(st entities.Stream) entities.Message {
+	return entities.Message{
+		Type:    entities.MessageTypeMetadata,
+		Message: string(st.Codec),
+	}
 }

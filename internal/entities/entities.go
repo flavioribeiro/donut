@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	astisrt "github.com/asticode/go-astisrt/pkg"
+	"github.com/asticode/go-astits"
 	"github.com/pion/webrtc/v3"
 )
 
@@ -86,6 +87,26 @@ type StreamInfo struct {
 	Streams []Stream
 }
 
+func (s *StreamInfo) VideoStreams() []Stream {
+	var result []Stream
+	for _, s := range s.Streams {
+		if s.Type == VideoType {
+			result = append(result, s)
+		}
+	}
+	return result
+}
+
+func (s *StreamInfo) AudioStreams() []Stream {
+	var result []Stream
+	for _, s := range s.Streams {
+		if s.Type == AudioType {
+			result = append(result, s)
+		}
+	}
+	return result
+}
+
 type Cue struct {
 	Type      string
 	StartTime int64
@@ -93,12 +114,19 @@ type Cue struct {
 }
 
 type StreamParameters struct {
-	WebRTCConn    *webrtc.PeerConnection
-	Cancel        context.CancelFunc
-	Ctx           context.Context
-	SRTConnection *astisrt.Connection
-	VideoTrack    *webrtc.TrackLocalStaticSample
-	MetadataTrack *webrtc.DataChannel
+	WebRTCConn        *webrtc.PeerConnection
+	Cancel            context.CancelFunc
+	Ctx               context.Context
+	SRTConnection     *astisrt.Connection
+	VideoTrack        *webrtc.TrackLocalStaticSample
+	MetadataTrack     *webrtc.DataChannel
+	StreamInfo        *StreamInfo
+	StreamMiddlewares []StreamMiddleware
+}
+
+// StreamMiddleware is a component to act while streaming
+type StreamMiddleware interface {
+	Act(mpegTSDemuxData *astits.DemuxerData, sp *StreamParameters) error
 }
 
 type Config struct {
