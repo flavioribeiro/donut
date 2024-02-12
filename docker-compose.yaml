@@ -12,6 +12,10 @@ services:
       - "8081:8081"
       - "8081:8081/udp"
       - "6060:6060"
+    depends_on:
+      - srt
+    links:
+      - srt
 
   test:
     build:
@@ -47,9 +51,9 @@ services:
     ports:
       - "40052:40052/udp"
     depends_on:
-      - app
+      - origin
     links:
-      - app
+      - origin
 
   origin: # simulating an mpeg-ts upd origin live transmission
     image: jrottenberg/ffmpeg:4.4-alpine
@@ -61,8 +65,4 @@ services:
       - SRT_INPUT_HOST=srt
       - SRT_INPUT_PORT=1234
       - PKT_SIZE=1316
-    depends_on:
-      - srt
-    links:
-      - srt
 

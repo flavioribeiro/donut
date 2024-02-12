@@ -6,6 +6,12 @@ test:
 	# docker compose stop test && docker compose down test && docker compose build test && docker compose run --rm test
 	docker compose stop test && docker compose down test && docker compose run --rm test
 
+run-srt:
+	docker compose stop && docker compose down && docker compose build && docker compose up srt
+
+mac-run-local:
+	./scripts/mac_local_run.sh
+
 mac-test-local:
 	./scripts/mac_local_run_test.sh
 
