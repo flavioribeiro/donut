@@ -61,10 +61,10 @@ func (c *StreamingController) Stream(sp *entities.StreamParameters) {
 		select {
 		case <-sp.Ctx.Done():
 			if errors.Is(sp.Ctx.Err(), context.Canceled) {
-				c.l.Infow("streaming has stopped")
+				c.l.Infow("streaming has stopped due cancellation")
 				return
 			}
-			c.l.Errorw("streaming has stopped by error",
+			c.l.Errorw("streaming has stopped due errors",
 				"error", sp.Ctx.Err(),
 			)
 			return

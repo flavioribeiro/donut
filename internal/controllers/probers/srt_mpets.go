@@ -67,8 +67,12 @@ func (c *SrtMpegTs) streamInfoMap(req *entities.RequestParams) (map[entities.Cod
 	for {
 		select {
 		case <-ctx.Done():
-			c.l.Errorw("probing has stopped")
-			return streamInfoMap, nil
+			if errors.Is(ctx.Err(), context.Canceled) {
+				c.l.Infow("probing has stopped due cancellation")
+				return streamInfoMap, nil
+			}
+			c.l.Errorw("probing has stopped due errors")
+			return streamInfoMap, ctx.Err()
 		default:
 			stop, err := c.fillStreamInfoFromMpegTS(streamInfoMap, mpegTSDemuxer)
 			if stop {
