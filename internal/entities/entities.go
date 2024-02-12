@@ -124,7 +124,8 @@ type StreamParameters struct {
 	StreamMiddlewares []StreamMiddleware
 }
 
-// StreamMiddleware is a component to act while streaming
+// StreamMiddleware is a component to act while streaming.
+// Most implementations are at /internal/controllers/streammiddlewares/
 type StreamMiddleware interface {
 	Act(mpegTSDemuxData *astits.DemuxerData, sp *StreamParameters) error
 }

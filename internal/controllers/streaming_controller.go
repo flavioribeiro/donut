@@ -1,6 +1,8 @@
 package controllers
 
 import (
+	"context"
+	"errors"
 	"io"
 	"time"
 
@@ -58,7 +60,13 @@ func (c *StreamingController) Stream(sp *entities.StreamParameters) {
 	for {
 		select {
 		case <-sp.Ctx.Done():
-			c.l.Errorw("streaming has stopped")
+			if errors.Is(sp.Ctx.Err(), context.Canceled) {
+				c.l.Infow("streaming has stopped")
+				return
+			}
+			c.l.Errorw("streaming has stopped by error",
+				"error", sp.Ctx.Err(),
+			)
 			return
 		default:
 			// fetching mpeg-ts data
@@ -90,9 +98,15 @@ func (c *StreamingController) Stream(sp *entities.StreamParameters) {
 				)
 				return
 			}
+
 			// calling all registered middlewares
 			for _, m := range c.middlewares {
-				m.Act(mpegTSDemuxData, sp)
+				err = m.Act(mpegTSDemuxData, sp)
+				if err != nil {
+					c.l.Errorw("middleware error",
+						"error", err,
+					)
+				}
 			}
 		}
 	}
