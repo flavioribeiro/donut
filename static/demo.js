@@ -131,6 +131,12 @@ const formattedNow = () => {
 
 const log = (msg, level = "info") => {
   const el = document.createElement("p")
+  
+  if (typeof(msg) !== "string") {
+    msg = "unknown log msg type " + typeof(msg)
+    level = "error"
+  }
+
   if (level === "error" || msg.includes("failed") || msg.includes("error")) {
     el.style = "color: red;background-color: yellow;";
     level = "error"

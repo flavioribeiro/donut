@@ -103,22 +103,22 @@ func (m *Mapper) FromWebRTCSessionDescriptionToStreamInfo(desc webrtc.SessionDes
 						Type:  mediaType,
 					}
 				} else if strings.Contains(a.Value, "H265") {
-					unique[entities.H264] = entities.Stream{
+					unique[entities.H265] = entities.Stream{
 						Codec: entities.H265,
 						Type:  mediaType,
 					}
 				} else if strings.Contains(a.Value, "VP9") {
-					unique[entities.H264] = entities.Stream{
+					unique[entities.VP9] = entities.Stream{
 						Codec: entities.VP9,
 						Type:  mediaType,
 					}
 				} else if strings.Contains(a.Value, "AV1") {
-					unique[entities.H264] = entities.Stream{
+					unique[entities.AV1] = entities.Stream{
 						Codec: entities.AV1,
 						Type:  mediaType,
 					}
 				} else if strings.Contains(a.Value, "opus") {
-					unique[entities.H264] = entities.Stream{
+					unique[entities.Opus] = entities.Stream{
 						Codec: entities.Opus,
 						Type:  mediaType,
 					}
