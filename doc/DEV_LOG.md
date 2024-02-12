@@ -1,11 +1,21 @@
 # Add tests/CI/linter
 
+* add ffmpeg test utility
+* add run test locally
+* add run linter on docker
+
 # Adding audio (WIP)
+
 
 ## Date: 2/4/24
 ### Summary: Adding audio track
 
-* Push directly vp8 and ogg through rtc (is it possible through SRT?)
+
+* add support to detect server side streams information
+* add support to intercept stream as it goes (middleware: useful for gathering data such as media info, bitrate, eia608, etc)
+* TODO: test push directly vp8 and ogg through rtc (is it possible through SRT?)
+* TODO: test push directly h264 and aac through
+* TODO: test transcode server side stream (h264 and aac) to client side stream support (vp8/vp9/ogg) through libav/ffmpeg.
 
 refs:
 * webrtc discussion https://github.com/pion/webrtc/discussions/1955
