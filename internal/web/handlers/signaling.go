@@ -6,52 +6,59 @@ import (
 	"net/http"
 
 	"github.com/flavioribeiro/donut/internal/controllers"
-	"github.com/flavioribeiro/donut/internal/controllers/probers"
+	"github.com/flavioribeiro/donut/internal/controllers/engine"
 	"github.com/flavioribeiro/donut/internal/entities"
 	"github.com/flavioribeiro/donut/internal/mapper"
+	"github.com/pion/webrtc/v3"
 	"go.uber.org/zap"
 )
 
 type SignalingHandler struct {
-	c                   *entities.Config
-	l                   *zap.SugaredLogger
-	webRTCController    *controllers.WebRTCController
-	srtController       *controllers.SRTController
-	streamingController *controllers.StreamingController
-	srtMpegTSprober     *probers.SrtMpegTs
-	mapper              *mapper.Mapper
+	c                *entities.Config
+	l                *zap.SugaredLogger
+	webRTCController *controllers.WebRTCController
+	mapper           *mapper.Mapper
+	donut            *engine.DonutEngineController
 }
 
 func NewSignalingHandler(
 	c *entities.Config,
 	log *zap.SugaredLogger,
 	webRTCController *controllers.WebRTCController,
-	srtController *controllers.SRTController,
-	streamingController *controllers.StreamingController,
-	srtMpegTSprober *probers.SrtMpegTs,
 	mapper *mapper.Mapper,
+	donut *engine.DonutEngineController,
 ) *SignalingHandler {
 	return &SignalingHandler{
-		c:                   c,
-		l:                   log,
-		webRTCController:    webRTCController,
-		srtController:       srtController,
-		streamingController: streamingController,
-		srtMpegTSprober:     srtMpegTSprober,
-		mapper:              mapper,
+		c:                c,
+		l:                log,
+		webRTCController: webRTCController,
+		mapper:           mapper,
+		donut:            donut,
 	}
 }
 
 func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
-	if r.Method != http.MethodPost {
-		return entities.ErrHTTPPostOnly
-	}
-
-	params := entities.RequestParams{}
-	if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
+	params, err := h.createAndValidateParams(w, r)
+	if err != nil {
 		return err
 	}
-	if err := params.Valid(); err != nil {
+
+	// It decides which prober and streamer should be used based on the parameters (server-side protocol).
+	donutEngine, err := h.donut.EngineFor(&params)
+	if err != nil {
+		return err
+	}
+
+	// real stream info from server
+	serverStreamInfo, err := donutEngine.Prober().StreamInfo(&params)
+	if err != nil {
+		return err
+	}
+
+	// client stream info support from the client (browser)
+	// TODO: evaluate to move this code either inside webrtc or to a prober
+	clientStreamInfo, err := h.mapper.FromWebRTCSessionDescriptionToStreamInfo(params.Offer)
+	if err != nil {
 		return err
 	}
 
@@ -62,47 +69,32 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 		return err
 	}
 
-	// real stream info from server
-	serverStreamInfo, err := h.srtMpegTSprober.StreamInfo(&params)
-	if err != nil {
-		return err
-	}
-	// client stream info support from the client (browser)
-	// clientStreamInfo, err := h.mapper.FromWebRTCSessionDescriptionToStreamInfo(params.Offer)
-	// if err != nil {
-	// 	h.l.Errorw("error while fetching server stream info",
-	// 		"error", err,
-	// 	)
-	// 	return err
-	// }
-	// TODO: create tracks according with SRT available streams
-	// for st := range serverStreamInfo.Streams {
-	// }
-
-	// Create a video track
-	videoTrack, err := h.webRTCController.CreateTrack(
-		peer,
-		entities.Stream{
-			Codec: entities.H264,
-		}, "video", params.SRTStreamID,
-	)
-	if err != nil {
-		return err
+	// TODO: introduce a mode to deal with transcoding recipes
+	// selects prober media that client and server has adverted.
+	compatibleStreams := donutEngine.CompatibleStreamsFor(serverStreamInfo, clientStreamInfo)
+	if compatibleStreams == nil || len(compatibleStreams) == 0 {
+		return entities.ErrMissingCompatibleStreams
 	}
 
-	// Create a audio track
-	// audioTrack, err := h.webRTCController.CreateTrack(
-	// 	peer,
-	// 	entities.Stream{
-	// 		Codec: entities.AAC,
-	// 	}, "audio", params.SRTStreamID,
-	// )
-	// if err != nil {
-	// 	h.l.Errorw("error while creating a web rtc track",
-	// 		"error", err,
-	// 	)
-	// 	return err
-	// }
+	var videoTrack *webrtc.TrackLocalStaticSample
+	// var audioTrack *webrtc.TrackLocalStaticSample
+
+	for _, st := range compatibleStreams {
+		// TODO: make the mapping less dependent on type
+		if st.Type == entities.VideoType {
+			videoTrack, err = h.webRTCController.CreateTrack(
+				peer,
+				st,
+				string(st.Type), // "video" or "audio"
+				params.SRTStreamID,
+			)
+			if err != nil {
+				return err
+			}
+
+		}
+		// if st.Type == entities.AudioType {
+	}
 
 	metadataSender, err := h.webRTCController.CreateDataChannel(peer, entities.MetadataChannelID)
 	if err != nil {
@@ -118,19 +110,15 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 		return err
 	}
 
-	srtConnection, err := h.srtController.Connect(cancel, &params)
-	if err != nil {
-		return err
-	}
-
-	go h.streamingController.Stream(&entities.StreamParameters{
-		Cancel:        cancel,
-		Ctx:           ctx,
-		WebRTCConn:    peer,
-		SRTConnection: srtConnection,
-		VideoTrack:    videoTrack,
-		MetadataTrack: metadataSender,
-		StreamInfo:    serverStreamInfo,
+	go donutEngine.Streamer().Stream(&entities.StreamParameters{
+		Cancel:           cancel,
+		Ctx:              ctx,
+		WebRTCConn:       peer,
+		RequestParams:    &params,
+		VideoTrack:       videoTrack,
+		MetadataTrack:    metadataSender,
+		ServerStreamInfo: serverStreamInfo,
+		ClientStreamInfo: clientStreamInfo,
 	})
 
 	w.Header().Set("Content-Type", "application/json")
@@ -142,4 +130,20 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 	}
 
 	return nil
+}
+
+func (h *SignalingHandler) createAndValidateParams(w http.ResponseWriter, r *http.Request) (entities.RequestParams, error) {
+	if r.Method != http.MethodPost {
+		return entities.RequestParams{}, entities.ErrHTTPPostOnly
+	}
+
+	params := entities.RequestParams{}
+	if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
+		return entities.RequestParams{}, err
+	}
+	if err := params.Valid(); err != nil {
+		return entities.RequestParams{}, err
+	}
+
+	return params, nil
 }

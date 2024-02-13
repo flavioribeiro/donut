@@ -25,7 +25,7 @@ func NewEIA608() EIA608Response {
 
 // Act parses and send eia608 data from mpeg-ts to metadata channel
 func (*eia608Middleware) Act(mpegTSDemuxData *astits.DemuxerData, sp *entities.StreamParameters) error {
-	vs := sp.StreamInfo.VideoStreams()
+	vs := sp.ServerStreamInfo.VideoStreams()
 	eia608Reader := newEIA608Reader()
 
 	for _, v := range vs {

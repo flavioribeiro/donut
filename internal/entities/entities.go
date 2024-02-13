@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	astisrt "github.com/asticode/go-astisrt/pkg"
 	"github.com/asticode/go-astits"
 	"github.com/pion/webrtc/v3"
 )
@@ -117,10 +116,11 @@ type StreamParameters struct {
 	WebRTCConn        *webrtc.PeerConnection
 	Cancel            context.CancelFunc
 	Ctx               context.Context
-	SRTConnection     *astisrt.Connection
+	RequestParams     *RequestParams
 	VideoTrack        *webrtc.TrackLocalStaticSample
 	MetadataTrack     *webrtc.DataChannel
-	StreamInfo        *StreamInfo
+	ServerStreamInfo  *StreamInfo
+	ClientStreamInfo  *StreamInfo
 	StreamMiddlewares []StreamMiddleware
 }
 

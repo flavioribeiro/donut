@@ -12,3 +12,6 @@ var ErrMissingWebRTCSetup = errors.New("WebRTCController.SetupPeerConnection mus
 var ErrMissingRemoteOffer = errors.New("nil offer, in order to connect one must pass a valid offer")
 var ErrMissingRequestParams = errors.New("RequestParams must not be nil")
 var ErrMissingProcess = errors.New("there is no process running")
+var ErrMissingProber = errors.New("there is no prober")
+var ErrMissingStreamer = errors.New("there is no streamer")
+var ErrMissingCompatibleStreams = errors.New("there is no compatible streams")

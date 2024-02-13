@@ -1,4 +1,4 @@
-package controllers
+package streamers
 
 import (
 	"context"
@@ -14,14 +14,14 @@ import (
 	"go.uber.org/zap"
 )
 
-type StreamingController struct {
+type SRTMpegTSStreamer struct {
 	c *entities.Config
 	l *zap.SugaredLogger
 
 	middlewares []entities.StreamMiddleware
 }
 
-type StreamingControllerParams struct {
+type SRTMpegTSStreamerParams struct {
 	fx.In
 	C *entities.Config
 	L *zap.SugaredLogger
@@ -29,25 +29,45 @@ type StreamingControllerParams struct {
 	Middlewares []entities.StreamMiddleware `group:"middlewares"`
 }
 
-func NewStreamingController(p StreamingControllerParams) *StreamingController {
-	return &StreamingController{
-		c:           p.C,
-		l:           p.L,
-		middlewares: p.Middlewares,
+type ResultSRTMpegTSStreamer struct {
+	fx.Out
+	SRTMpegTSStreamer DonutStreamer `group:"streamers"`
+}
+
+func NewSRTMpegTSStreamer(p SRTMpegTSStreamerParams) ResultSRTMpegTSStreamer {
+	return ResultSRTMpegTSStreamer{
+		SRTMpegTSStreamer: &SRTMpegTSStreamer{
+			c:           p.C,
+			l:           p.L,
+			middlewares: p.Middlewares,
+		},
 	}
 }
 
-func (c *StreamingController) Stream(sp *entities.StreamParameters) {
+func (c *SRTMpegTSStreamer) Match(req *entities.RequestParams) bool {
+	if req.SRTHost != "" {
+		return true
+	}
+	return false
+}
+
+func (c *SRTMpegTSStreamer) Stream(sp *entities.StreamParameters) {
+	srtConnection, err := c.connect(sp.Cancel, sp.RequestParams)
+	if err != nil {
+		c.l.Errorw("streaming has stopped due errors",
+			"error", sp.Ctx.Err(),
+		)
+		return
+	}
 	r, w := io.Pipe()
 
 	defer r.Close()
 	defer w.Close()
-	defer sp.SRTConnection.Close()
+	defer srtConnection.Close()
 	defer sp.WebRTCConn.Close()
 	defer sp.Cancel()
 
-	// TODO: pick the proper transport? is it possible to get rtp instead?
-	go c.readFromSRTIntoWriterPipe(sp.SRTConnection, w)
+	go c.readFromSRTIntoWriterPipe(srtConnection, w)
 
 	// reading from reader pipe to the mpeg-ts demuxer
 	mpegTSDemuxer := astits.NewDemuxer(sp.Ctx, r)
@@ -77,7 +97,7 @@ func (c *StreamingController) Stream(sp *entities.StreamParameters) {
 			}
 
 			// writing mpeg-ts video to webrtc channels
-			for _, v := range sp.StreamInfo.VideoStreams() {
+			for _, v := range sp.ServerStreamInfo.VideoStreams() {
 				if v.Id != mpegTSDemuxData.PID {
 					continue
 				}
@@ -109,7 +129,7 @@ func (c *StreamingController) Stream(sp *entities.StreamParameters) {
 	}
 }
 
-func (c *StreamingController) readFromSRTIntoWriterPipe(srtConnection *astisrt.Connection, w *io.PipeWriter) {
+func (c *SRTMpegTSStreamer) readFromSRTIntoWriterPipe(srtConnection *astisrt.Connection, w *io.PipeWriter) {
 	defer srtConnection.Close()
 
 	inboundMpegTsPacket := make([]byte, c.c.SRTReadBufferSizeBytes)
@@ -130,4 +150,44 @@ func (c *StreamingController) readFromSRTIntoWriterPipe(srtConnection *astisrt.C
 			break
 		}
 	}
+}
+
+// TODO: move to its own component later dup streamer.srt_mpegts, prober.srt_mpegts
+func (c *SRTMpegTSStreamer) connect(cancel context.CancelFunc, params *entities.RequestParams) (*astisrt.Connection, error) {
+	c.l.Info("trying to connect srt")
+
+	if err := params.Valid(); err != nil {
+		return nil, err
+	}
+
+	c.l.Infow("Connecting to SRT ",
+		"offer", params.String(),
+	)
+
+	conn, err := astisrt.Dial(astisrt.DialOptions{
+		ConnectionOptions: []astisrt.ConnectionOption{
+			astisrt.WithLatency(c.c.SRTConnectionLatencyMS),
+			astisrt.WithStreamid(params.SRTStreamID),
+			astisrt.WithCongestion("live"),
+			astisrt.WithTranstype(astisrt.Transtype(astisrt.TranstypeLive)),
+		},
+
+		OnDisconnect: func(conn *astisrt.Connection, err error) {
+			c.l.Infow("Canceling SRT",
+				"error", err,
+			)
+			cancel()
+		},
+
+		Host: params.SRTHost,
+		Port: params.SRTPort,
+	})
+	if err != nil {
+		c.l.Errorw("failed to connect srt",
+			"error", err,
+		)
+		return nil, err
+	}
+	c.l.Infow("Connected to SRT")
+	return conn, nil
 }

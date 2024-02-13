@@ -4,7 +4,9 @@ import (
 	"log"
 
 	"github.com/flavioribeiro/donut/internal/controllers"
+	"github.com/flavioribeiro/donut/internal/controllers/engine"
 	"github.com/flavioribeiro/donut/internal/controllers/probers"
+	"github.com/flavioribeiro/donut/internal/controllers/streamers"
 	"github.com/flavioribeiro/donut/internal/controllers/streammiddlewares"
 	"github.com/flavioribeiro/donut/internal/entities"
 	"github.com/flavioribeiro/donut/internal/mapper"
@@ -38,14 +40,14 @@ func Dependencies(enableICEMux bool) fx.Option {
 		fx.Provide(controllers.NewUDPICEServer),
 
 		// Controllers
-		fx.Provide(controllers.NewSRTController),
-		fx.Provide(controllers.NewStreamingController),
-
 		fx.Provide(controllers.NewWebRTCController),
 		fx.Provide(controllers.NewWebRTCSettingsEngine),
 		fx.Provide(controllers.NewWebRTCMediaEngine),
 		fx.Provide(controllers.NewWebRTCAPI),
+		fx.Provide(streamers.NewSRTMpegTSStreamer),
 		fx.Provide(probers.NewSrtMpegTs),
+
+		fx.Provide(engine.NewDonutEngineController),
 
 		// Stream middlewares
 		fx.Provide(streammiddlewares.NewStreamInfo),

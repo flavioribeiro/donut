@@ -7,26 +7,44 @@ import (
 
 	astisrt "github.com/asticode/go-astisrt/pkg"
 	"github.com/asticode/go-astits"
-	"github.com/flavioribeiro/donut/internal/controllers"
 	"github.com/flavioribeiro/donut/internal/entities"
 	"github.com/flavioribeiro/donut/internal/mapper"
+	"go.uber.org/fx"
 	"go.uber.org/zap"
 )
 
 type SrtMpegTs struct {
-	c             *entities.Config
-	l             *zap.SugaredLogger
-	srtController *controllers.SRTController
-	m             *mapper.Mapper
+	c *entities.Config
+	l *zap.SugaredLogger
+	m *mapper.Mapper
 }
 
-func NewSrtMpegTs(c *entities.Config, l *zap.SugaredLogger, srtController *controllers.SRTController, m *mapper.Mapper) *SrtMpegTs {
-	return &SrtMpegTs{
-		c:             c,
-		l:             l,
-		srtController: srtController,
-		m:             m,
+type ResultSrtMpegTs struct {
+	fx.Out
+	SrtMpegTsProber DonutProber `group:"probers"`
+}
+
+// NewSrtMpegTs creates a new SrtMpegTs DonutProber
+func NewSrtMpegTs(
+	c *entities.Config,
+	l *zap.SugaredLogger,
+	m *mapper.Mapper,
+) ResultSrtMpegTs {
+	return ResultSrtMpegTs{
+		SrtMpegTsProber: &SrtMpegTs{
+			c: c,
+			l: l,
+			m: m,
+		},
 	}
+}
+
+// Match returns true when the request is for an SrtMpegTs prober
+func (c *SrtMpegTs) Match(req *entities.RequestParams) bool {
+	if req.SRTHost != "" {
+		return true
+	}
+	return false
 }
 
 // StreamInfo connects to the SRT stream and probe N packets to discovery the media properties.
@@ -51,7 +69,7 @@ func (c *SrtMpegTs) streamInfoMap(req *entities.RequestParams) (map[entities.Cod
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	srtConnection, err := c.srtController.Connect(cancel, req)
+	srtConnection, err := c.connect(cancel, req)
 	if err != nil {
 		return nil, err
 	}
@@ -131,4 +149,44 @@ func (c *SrtMpegTs) fillStreamInfoFromMpegTS(streamInfo map[entities.Codec]entit
 		}
 	}
 	return false, nil
+}
+
+// TODO: move to its own component later dup streamer.srt_mpegts, prober.srt_mpegts
+func (c *SrtMpegTs) connect(cancel context.CancelFunc, params *entities.RequestParams) (*astisrt.Connection, error) {
+	c.l.Info("trying to connect srt")
+
+	if err := params.Valid(); err != nil {
+		return nil, err
+	}
+
+	c.l.Infow("Connecting to SRT ",
+		"offer", params.String(),
+	)
+
+	conn, err := astisrt.Dial(astisrt.DialOptions{
+		ConnectionOptions: []astisrt.ConnectionOption{
+			astisrt.WithLatency(c.c.SRTConnectionLatencyMS),
+			astisrt.WithStreamid(params.SRTStreamID),
+			astisrt.WithCongestion("live"),
+			astisrt.WithTranstype(astisrt.Transtype(astisrt.TranstypeLive)),
+		},
+
+		OnDisconnect: func(conn *astisrt.Connection, err error) {
+			c.l.Infow("Canceling SRT",
+				"error", err,
+			)
+			cancel()
+		},
+
+		Host: params.SRTHost,
+		Port: params.SRTPort,
+	})
+	if err != nil {
+		c.l.Errorw("failed to connect srt",
+			"error", err,
+		)
+		return nil, err
+	}
+	c.l.Infow("Connected to SRT")
+	return conn, nil
 }
