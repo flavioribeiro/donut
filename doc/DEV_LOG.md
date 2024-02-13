@@ -21,11 +21,11 @@ refs:
 * binding go https://github.com/asticode/go-astiav
 * transcoding https://github.com/asticode/go-astiav/blob/master/examples/transcoding/main.go
 * using buffer streaming https://github.com/bubbajoe/go-astiav-contr/blob/misc-update/examples/gocv/main.go#L167
+* (working) go webrtc same stream https://github.com/pion/webrtc/blob/v3.2.24/examples/play-from-disk/main.go#L88C39-L88C64
+* (working) https://jsfiddle.net/8kup9mvn/
 
 * webrtc discussion https://github.com/pion/webrtc/discussions/1955
 * go webrtc example https://github.com/pion/webrtc/blob/master/examples/play-from-disk-renegotiation/main.go
-* (working) go webrtc same stream https://github.com/pion/webrtc/blob/v3.2.24/examples/play-from-disk/main.go#L88C39-L88C64
-* (working) https://jsfiddle.net/8kup9mvn/
 * webrtc discussion https://stackoverflow.com/questions/66243915/how-to-get-multiple-streams-from-webrtc-peerconnection
 * golang libav https://github.com/giorgisio/goav/blob/master/example/tutorial01.go#L69
 * libav transcoding example gshttps://github.com/FFmpeg/FFmpeg/blob/master/doc/examples/transcode.c#L158
