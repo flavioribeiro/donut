@@ -14,15 +14,6 @@ import (
 	"go.uber.org/zap"
 )
 
-type StreamingControllerParams struct {
-	fx.In
-	C *entities.Config
-	L *zap.SugaredLogger
-
-	EIA608Middleware     entities.StreamMiddleware `name:"eia608"`
-	StreamInfoMiddleware entities.StreamMiddleware `name:"stream_info"`
-}
-
 type StreamingController struct {
 	c *entities.Config
 	l *zap.SugaredLogger
@@ -30,13 +21,19 @@ type StreamingController struct {
 	middlewares []entities.StreamMiddleware
 }
 
-func NewStreamingController(sp StreamingControllerParams) *StreamingController {
-	middlewares := []entities.StreamMiddleware{sp.EIA608Middleware, sp.StreamInfoMiddleware}
+type StreamingControllerParams struct {
+	fx.In
+	C *entities.Config
+	L *zap.SugaredLogger
 
+	Middlewares []entities.StreamMiddleware `group:"middlewares"`
+}
+
+func NewStreamingController(p StreamingControllerParams) *StreamingController {
 	return &StreamingController{
-		c:           sp.C,
-		l:           sp.L,
-		middlewares: middlewares,
+		c:           p.C,
+		l:           p.L,
+		middlewares: p.Middlewares,
 	}
 }
 

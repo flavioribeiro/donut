@@ -140,7 +140,7 @@ type Config struct {
 	ICEReadBufferSize  int      `required:"true" default:"8"`
 	ICEExternalIPsDNAT []string `required:"true" default:"127.0.0.1"`
 	EnableICEMux       bool     `require:"true" default:"false"`
-	StunServers        []string `required:"true" default:"stun:stun.l.google.com:19302"`
+	StunServers        []string `required:"true" default:"stun:stun.l.google.com:19302,stun:stun1.l.google.com:19302,stun:stun2.l.google.com:19302,stun:stun4.l.google.com:19302"`
 
 	SRTConnectionLatencyMS int32 `required:"true" default:"300"`
 	// MPEG-TS consists of single units of 188 bytes. Multiplying 188*7 we get 1316,

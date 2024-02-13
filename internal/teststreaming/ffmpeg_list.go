@@ -27,8 +27,8 @@ var FFMPEG_LIVE_SRT_MPEG_TS_H264_AAC = testFFmpeg{
     	-c:a aac -b:a 96k -f mpegts srt://0.0.0.0:` + strconv.Itoa(output_port+0) + `?mode=listener&smoother=live&transtype=live
 	`,
 	expectedStreams: []entities.Stream{
-		entities.Stream{Codec: entities.H264, Type: entities.VideoType},
-		entities.Stream{Codec: entities.AAC, Type: entities.AudioType},
+		entities.Stream{Id: uint16(256), Codec: entities.H264, Type: entities.VideoType},
+		entities.Stream{Id: uint16(257), Codec: entities.AAC, Type: entities.AudioType},
 	},
 	output: FFmpegOutput{Host: "127.0.0.1", Port: output_port + 0},
 }
@@ -41,8 +41,8 @@ var FFMPEG_LIVE_SRT_MPEG_TS_H265_AAC = testFFmpeg{
     	-c:a aac -b:a 96k -f mpegts srt://0.0.0.0:` + strconv.Itoa(output_port+1) + `?mode=listener&smoother=live&transtype=live
 	`,
 	expectedStreams: []entities.Stream{
-		entities.Stream{Codec: entities.H265, Type: entities.VideoType},
-		entities.Stream{Codec: entities.AAC, Type: entities.AudioType},
+		entities.Stream{Id: uint16(256), Codec: entities.H265, Type: entities.VideoType},
+		entities.Stream{Id: uint16(257), Codec: entities.AAC, Type: entities.AudioType},
 	},
 	output: FFmpegOutput{Host: "127.0.0.1", Port: output_port + 1},
 }

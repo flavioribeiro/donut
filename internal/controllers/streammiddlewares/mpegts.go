@@ -13,7 +13,7 @@ type eia608Middleware struct{}
 
 type EIA608Response struct {
 	fx.Out
-	EIA608Middleware entities.StreamMiddleware `name:"eia608"`
+	EIA608Middleware entities.StreamMiddleware `group:"middlewares"`
 }
 
 // NewEIA608 creates a new EIA608 middleware
@@ -53,7 +53,7 @@ type streamInfoMiddleware struct {
 
 type StreamInfoResponse struct {
 	fx.Out
-	StreamInfoMiddleware entities.StreamMiddleware `name:"stream_info"`
+	StreamInfoMiddleware entities.StreamMiddleware `group:"middlewares"`
 }
 
 // NewStreamInfo creates a new StreamInfo middleware
