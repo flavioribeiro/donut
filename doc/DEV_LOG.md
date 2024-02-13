@@ -18,6 +18,10 @@
 * TODO: test transcode server side stream (h264 and aac) to client side stream support (vp8/vp9/ogg) through libav/ffmpeg.
 
 refs:
+* binding go https://github.com/asticode/go-astiav
+* transcoding https://github.com/asticode/go-astiav/blob/master/examples/transcoding/main.go
+* using buffer streaming https://github.com/bubbajoe/go-astiav-contr/blob/misc-update/examples/gocv/main.go#L167
+
 * webrtc discussion https://github.com/pion/webrtc/discussions/1955
 * go webrtc example https://github.com/pion/webrtc/blob/master/examples/play-from-disk-renegotiation/main.go
 * (working) go webrtc same stream https://github.com/pion/webrtc/blob/v3.2.24/examples/play-from-disk/main.go#L88C39-L88C64
@@ -31,7 +35,7 @@ refs:
 * libav doc https://ffmpeg.org/doxygen/trunk/index.html
 * generic av format https://github.com/rvs/ffmpeg/blob/master/libavformat/output-example.c
 * mpegts example https://github.com/wakabayashik/mpegts-to-webrtc/blob/main/main.go
-* binding go https://github.com/asticode/go-astiav
+
 * network use https://github.com/asticode/go-astiav/issues/7
 * srt live https://github.com/Haivision/srt/blob/master/docs/features/live-streaming.md
 

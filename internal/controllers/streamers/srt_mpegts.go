@@ -109,12 +109,6 @@ func (c *SRTMpegTSStreamer) Stream(sp *entities.StreamParameters) {
 					return
 				}
 			}
-			if err != nil {
-				c.l.Errorw("failed to write an mpeg-ts to web rtc",
-					"error", err,
-				)
-				return
-			}
 
 			// calling all registered middlewares
 			for _, m := range c.middlewares {
