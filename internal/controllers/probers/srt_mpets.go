@@ -144,6 +144,9 @@ func (c *SrtMpegTs) fillStreamInfoFromMpegTS(streamInfo map[entities.Codec]entit
 	}
 
 	if mpegTSDemuxData.PMT != nil {
+		// TODO: add timing information
+		// pts https://github.com/asticode/go-astits/blob/b0b19247aa31633650c32638fb55f597fa6e2468/cmd/astits-es-split/main.go#L206
+		// https://github.com/asticode/go-astits/blob/master/packet.go#L46
 		for _, es := range mpegTSDemuxData.PMT.ElementaryStreams {
 			streamInfo[c.m.FromMpegTsStreamTypeToCodec(es.StreamType)] = c.m.FromStreamTypeToEntityStream(es)
 		}

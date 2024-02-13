@@ -70,7 +70,7 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 	}
 
 	// TODO: introduce a mode to deal with transcoding recipes
-	// selects prober media that client and server has adverted.
+	// selects proper media that client and server has adverted.
 	compatibleStreams := donutEngine.CompatibleStreamsFor(serverStreamInfo, clientStreamInfo)
 	if compatibleStreams == nil || len(compatibleStreams) == 0 {
 		return entities.ErrMissingCompatibleStreams
