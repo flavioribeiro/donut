@@ -12,17 +12,26 @@ import (
 	"go.uber.org/fx/fxtest"
 )
 
-var controller *probers.SrtMpegTs
+var p []probers.DonutProber
 
-func setupController(t *testing.T) *probers.SrtMpegTs {
-	if controller != nil {
-		return controller
+func setupController(t *testing.T, req *entities.RequestParams) probers.DonutProber {
+	if p == nil {
+		fxtest.New(t,
+			web.Dependencies(false),
+			fx.Populate(
+				fx.Annotate(
+					&p,
+					fx.ParamTags(`group:"probers"`),
+				),
+			),
+		)
 	}
-	fxtest.New(t,
-		web.Dependencies(false),
-		fx.Populate(&controller),
-	)
-	return controller
+	for _, c := range p {
+		if c.Match(req) {
+			return c
+		}
+	}
+	return nil
 }
 
 func TestSrtMpegTs_StreamInfo(t *testing.T) {
@@ -32,13 +41,15 @@ func TestSrtMpegTs_StreamInfo(t *testing.T) {
 	defer ffmpeg.Stop()
 	ffmpeg.Start()
 
-	controller = setupController(t)
-
-	streamInfo, err := controller.StreamInfo(&entities.RequestParams{
+	req := &entities.RequestParams{
 		SRTHost:     ffmpeg.Output().Host,
 		SRTPort:     uint16(ffmpeg.Output().Port),
 		SRTStreamID: "test_id",
-	})
+	}
+
+	controller := setupController(t, req)
+
+	streamInfo, err := controller.StreamInfo(req)
 
 	assert.Nil(t, err)
 	assert.NotNil(t, streamInfo)
@@ -52,13 +63,15 @@ func TestSrtMpegTs_StreamInfo_265(t *testing.T) {
 	defer ffmpeg.Stop()
 	ffmpeg.Start()
 
-	controller = setupController(t)
-
-	streamInfo, err := controller.StreamInfo(&entities.RequestParams{
+	req := &entities.RequestParams{
 		SRTHost:     ffmpeg.Output().Host,
 		SRTPort:     uint16(ffmpeg.Output().Port),
 		SRTStreamID: "test_id",
-	})
+	}
+
+	controller := setupController(t, req)
+
+	streamInfo, err := controller.StreamInfo(req)
 
 	assert.Nil(t, err)
 	assert.NotNil(t, streamInfo)

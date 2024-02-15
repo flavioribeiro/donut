@@ -29,5 +29,5 @@ ENV CGO_LDFLAGS="-L${SRT_FOLDER}/lib/"
 
 COPY . ./donut
 WORKDIR ${WD}/donut
-RUN go build .
+RUN go build -race .
 CMD ["/usr/src/app/donut/donut", "--enable-ice-mux=true"]

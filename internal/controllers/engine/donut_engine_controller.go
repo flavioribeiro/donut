@@ -12,7 +12,7 @@ import (
 type DonutEngine interface {
 	Prober() probers.DonutProber
 	Streamer() streamers.DonutStreamer
-	CompatibleStreamsFor(server, client *entities.StreamInfo) []entities.Stream
+	CompatibleStreamsFor(server, client *entities.StreamInfo) ([]entities.Stream, bool)
 }
 
 type DonutEngineParams struct {
@@ -79,7 +79,7 @@ func (d *donutEngine) Streamer() streamers.DonutStreamer {
 	return d.streamer
 }
 
-func (d *donutEngine) CompatibleStreamsFor(server, client *entities.StreamInfo) []entities.Stream {
+func (d *donutEngine) CompatibleStreamsFor(server, client *entities.StreamInfo) ([]entities.Stream, bool) {
 	// TODO: implement proper matching
-	return server.Streams
+	return server.Streams, true
 }

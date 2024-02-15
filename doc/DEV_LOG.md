@@ -3,6 +3,7 @@
 * add ffmpeg test utility
 * add run test locally
 * add run linter on docker
+* tag integration tests // +build integration || go test -tags integration -v ./...
 
 # Adding audio (WIP)
 
@@ -16,6 +17,11 @@
 * TODO: test push directly vp8 and ogg through rtc (is it possible through SRT?)
 * TODO: test push directly h264 and aac through
 * TODO: test transcode server side stream (h264 and aac) to client side stream support (vp8/vp9/ogg) through libav/ffmpeg.
+	// selects proper media that client and server has adverted.
+	// donutEngine preferable vp8, ogg???
+	// From: [] To: [] or Transcode:[], Bypass: []
+	// libav_streamer.go, libav_streamer_format.go, libav_streamer_codec.go...
+	// reads from Server (input) and generates h264 raw, and ogg and send it with timing attributes
 
 refs:
 * binding go https://github.com/asticode/go-astiav
@@ -23,6 +29,7 @@ refs:
 * using buffer streaming https://github.com/bubbajoe/go-astiav-contr/blob/misc-update/examples/gocv/main.go#L167
 * (working) go webrtc same stream https://github.com/pion/webrtc/blob/v3.2.24/examples/play-from-disk/main.go#L88C39-L88C64
 * (working) https://jsfiddle.net/8kup9mvn/
+* (two tracks - js side) https://www.youtube.com/watch?v=8I2axE6j204
 
 * webrtc discussion https://github.com/pion/webrtc/discussions/1955
 * go webrtc example https://github.com/pion/webrtc/blob/master/examples/play-from-disk-renegotiation/main.go

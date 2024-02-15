@@ -71,7 +71,15 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 
 	// TODO: introduce a mode to deal with transcoding recipes
 	// selects proper media that client and server has adverted.
-	compatibleStreams := donutEngine.CompatibleStreamsFor(serverStreamInfo, clientStreamInfo)
+	// donutEngine preferable vp8, ogg???
+	// From: [] To: [] or Transcode:[], Bypass: []
+	// libav_streamer.go, libav_streamer_format.go, libav_streamer_codec.go...
+	// reads from Server (input) and generates h264 raw, and ogg and send it with timing attributes
+	compatibleStreams, ok := donutEngine.CompatibleStreamsFor(serverStreamInfo, clientStreamInfo)
+	if !ok {
+		h.l.Info("we must transcode")
+	}
+
 	if compatibleStreams == nil || len(compatibleStreams) == 0 {
 		return entities.ErrMissingCompatibleStreams
 	}
