@@ -1,8 +1,10 @@
 run:
-	docker compose stop && docker compose down && docker compose build && docker compose up origin srt app
+	# in case you need to re-build it, uncomment the following line
+	# docker compose stop && docker compose down && docker compose build && docker compose up origin srt app
+	docker compose stop && docker compose build app && docker compose up origin srt app
 
 test:
-	# in case you need to re-build it
+	# in case you need to re-build it, uncomment the following line
 	# docker compose stop test && docker compose down test && docker compose build test && docker compose run --rm test
 	docker compose stop test && docker compose down test && docker compose run --rm test
 

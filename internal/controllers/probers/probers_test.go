@@ -34,7 +34,7 @@ func selectProberFor(t *testing.T, req *entities.RequestParams) probers.DonutPro
 	return nil
 }
 
-func TestSrtMpegTs_StreamInfo(t *testing.T) {
+func TestSrtMpegTs_StreamInfo_264(t *testing.T) {
 	t.Parallel()
 	ffmpeg := teststreaming.FFMPEG_LIVE_SRT_MPEG_TS_H264_AAC
 

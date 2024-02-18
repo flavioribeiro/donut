@@ -39,13 +39,10 @@ func NewLibAVFFmpeg(
 
 // Match returns true when the request is for an LibAVFFmpeg prober
 func (c *LibAVFFmpeg) Match(req *entities.RequestParams) bool {
-	if req.SRTHost != "" {
-		return true
-	}
-	return false
+	return req.SRTHost != ""
 }
 
-// StreamInfo connects to the SRT stream and probe N packets to discovery the media properties.
+// StreamInfo connects to the SRT stream to discovery media properties.
 func (c *LibAVFFmpeg) StreamInfo(req *entities.RequestParams) (*entities.StreamInfo, error) {
 	closer := astikit.NewCloser()
 	defer closer.Close()
@@ -67,10 +64,18 @@ func (c *LibAVFFmpeg) StreamInfo(req *entities.RequestParams) (*entities.StreamI
 		return nil, fmt.Errorf("mpegts: %w", entities.ErrFFmpegLibAVNotFound)
 	}
 
-	inputURL := fmt.Sprintf("srt://%s:%d/%s", req.SRTHost, req.SRTPort, req.SRTStreamID)
-	if err := inputFormatContext.OpenInput(inputURL, inputFormat, nil); err != nil {
+	// ref https://ffmpeg.org/ffmpeg-all.html#srt
+	d := &astiav.Dictionary{}
+	// flags (the zeroed 3rd value) https://github.com/FFmpeg/FFmpeg/blob/n5.0/libavutil/dict.h#L67C9-L77
+	d.Set("srt_streamid", req.SRTStreamID, 0)
+	d.Set("smoother", "live", 0)
+	d.Set("transtype", "live", 0)
+
+	inputURL := fmt.Sprintf("srt://%s:%d", req.SRTHost, req.SRTPort)
+	if err := inputFormatContext.OpenInput(inputURL, inputFormat, d); err != nil {
 		return nil, fmt.Errorf("error while inputFormatContext.OpenInput: %w", err)
 	}
+	closer.Add(inputFormatContext.CloseInput)
 
 	if err := inputFormatContext.FindStreamInfo(nil); err != nil {
 		return nil, fmt.Errorf("error while inputFormatContext.FindStreamInfo %w", err)
@@ -80,9 +85,9 @@ func (c *LibAVFFmpeg) StreamInfo(req *entities.RequestParams) (*entities.StreamI
 	for _, is := range inputFormatContext.Streams() {
 		if is.CodecParameters().MediaType() != astiav.MediaTypeAudio &&
 			is.CodecParameters().MediaType() != astiav.MediaTypeVideo {
+			c.l.Info("skipping media type", is.CodecParameters().MediaType())
 			continue
 		}
-
 		streams = append(streams, c.m.FromLibAVStreamToEntityStream(is))
 	}
 	si := entities.StreamInfo{Streams: streams}

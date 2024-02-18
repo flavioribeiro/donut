@@ -45,7 +45,6 @@ func Dependencies(enableICEMux bool) fx.Option {
 		fx.Provide(controllers.NewWebRTCMediaEngine),
 		fx.Provide(controllers.NewWebRTCAPI),
 		fx.Provide(streamers.NewSRTMpegTSStreamer),
-		fx.Provide(probers.NewSrtMpegTs),
 		fx.Provide(probers.NewLibAVFFmpeg),
 
 		fx.Provide(engine.NewDonutEngineController),
