@@ -17,6 +17,8 @@ coverage.out
 # vendor/
 tags
 
+tmp/
+
 .DS_Store
 
 .vscode

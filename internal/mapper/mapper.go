@@ -3,6 +3,7 @@ package mapper
 import (
 	"strings"
 
+	"github.com/asticode/go-astiav"
 	"github.com/asticode/go-astits"
 	"github.com/flavioribeiro/donut/internal/entities"
 	"github.com/pion/webrtc/v3"
@@ -156,4 +157,40 @@ func (m *Mapper) FromStreamToEntityMessage(st entities.Stream) entities.Message 
 		Type:    entities.MessageTypeMetadata,
 		Message: string(st.Codec),
 	}
+}
+
+func (m *Mapper) FromLibAVStreamToEntityStream(libavStream *astiav.Stream) entities.Stream {
+	st := entities.Stream{}
+
+	if libavStream.CodecParameters().MediaType() == astiav.MediaTypeAudio {
+		st.Type = entities.AudioType
+	} else if libavStream.CodecParameters().MediaType() == astiav.MediaTypeVideo {
+		st.Type = entities.VideoType
+	} else {
+		m.l.Info("[[[[TODO: mapper not implemented]]]] for ", libavStream.CodecParameters().MediaType())
+		st.Type = entities.UnknownType
+	}
+
+	// https://github.com/FFmpeg/FFmpeg/blob/master/libavcodec/codec_desc.c#L34
+	if libavStream.CodecParameters().CodecID().Name() == "h264" {
+		st.Codec = entities.H264
+	} else if libavStream.CodecParameters().CodecID().Name() == "h265" {
+		st.Codec = entities.H265
+	} else if libavStream.CodecParameters().CodecID().Name() == "hevc" {
+		st.Codec = entities.H265
+	} else if libavStream.CodecParameters().CodecID().Name() == "av1" {
+		st.Codec = entities.AV1
+	} else if libavStream.CodecParameters().CodecID().Name() == "aac" {
+		st.Codec = entities.AAC
+	} else if libavStream.CodecParameters().CodecID().Name() == "opus" {
+		st.Codec = entities.Opus
+	} else {
+		m.l.Info("[[[[TODO: mapper not implemented]]]] for ", libavStream.CodecParameters().CodecID().Name())
+		st.Codec = entities.UnknownCodec
+	}
+
+	st.Id = uint16(libavStream.ID())
+	st.Index = uint16(libavStream.Index())
+
+	return st
 }

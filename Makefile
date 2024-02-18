@@ -7,7 +7,7 @@ test:
 	docker compose stop test && docker compose down test && docker compose run --rm test
 
 run-srt:
-	docker compose stop && docker compose down && docker compose build && docker compose up srt
+	docker compose stop && docker compose down && docker compose build srt && docker compose up srt
 
 mac-run-local:
 	./scripts/mac_local_run.sh
@@ -21,4 +21,8 @@ html-local-coverage:
 lint:
 	docker compose stop lint && docker compose down lint && docker compose run --rm lint	
 
-.PHONY: run
+# INCOMPLETE from https://github.com/asticode/go-astiav/blob/master/Makefile
+install-ffmpeg:
+	./scripts/install_local_ffmpeg.sh
+
+.PHONY: run lint test run-srt mac-run-local mac-test-local html-local-coverage install-ffmpeg

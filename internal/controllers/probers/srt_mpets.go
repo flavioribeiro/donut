@@ -42,7 +42,7 @@ func NewSrtMpegTs(
 // Match returns true when the request is for an SrtMpegTs prober
 func (c *SrtMpegTs) Match(req *entities.RequestParams) bool {
 	if req.SRTHost != "" {
-		return true
+		return false
 	}
 	return false
 }

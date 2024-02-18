@@ -51,3 +51,35 @@ You can try to use the [docker-compose](/README.md#run-using-docker-compose), bu
 #  For MacOS
 CGO_LDFLAGS="-L$(brew --prefix srt)/lib -lsrt" CGO_CFLAGS="-I$(brew --prefix srt)/include/" go run main.go
 ```
+
+## If you're seeing the error "could not determine kind of name for C.AV_CODEC"
+
+Make sure you're using ffmpeg `"n5.1.2"` (via `make install-ffmpeg`), go-astiav@v0.12.0 only supports ffmpeg 5.0.
+
+```
+../../go/pkg/mod/github.com/asticode/go-astiav@v0.12.0/codec_context_flag.go:38:50: could not determine kind of name for C.AV_CODEC_FLAG2_DROP_FRAME_TIMECODE
+../../go/pkg/mod/github.com/asticode/go-astiav@v0.12.0/codec_context_flag.go:21:51: could not determine kind of name for C.AV_CODEC_FLAG_TRUNCATED
+```
+
+## If you're seeing the error "issue /usr/bin/ld: skipping incompatible lib.so when searching for -lavdevice"
+
+Fixing the docker platform fixed the problem. Even though the configured platform is amd64, the final objects are x64, don't know why yet.
+
+```
+# The tools to check the compiled objects format:
+find / -name libsrt.so # to find the objects
+objdump -a /opt/srt_lib/lib/libsrt.so
+objdump -a /usr/local/lib/libavformat.so
+```
+
+Fixing the platform.
+
+Dockerfile
+```Dockerfile
+FROM --platform=linux/amd64 jrottenberg/ffmpeg:5.1.2-ubuntu2004  AS base
+```
+
+docker-compose.yml
+```yaml
+platform: "linux/amd64"
+```

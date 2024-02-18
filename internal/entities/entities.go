@@ -80,6 +80,7 @@ type Stream struct {
 	Codec Codec
 	Type  MediaType
 	Id    uint16
+	Index uint16
 }
 
 type StreamInfo struct {
