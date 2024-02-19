@@ -7,6 +7,25 @@
 
 # Adding audio (WIP)
 
+```golang
+// potential api for stream libav
+go donutEngine.Stream(
+    StreamParamter{
+		OnVideoData: func(d data[]) error {
+
+		},
+		OnAudioData: func(d data[], stream) error {
+			channel.setData(d,stream.duration)
+		},
+		OnError: func(d data[]) error {
+
+		},
+		Observe: func(st stream) error {
+			metadata.send
+		},
+	}
+)
+```
 
 ## Date: 2/4/24
 ### Summary: Adding audio track
