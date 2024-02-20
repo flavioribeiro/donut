@@ -46,7 +46,7 @@ func NewSRTMpegTSStreamer(p SRTMpegTSStreamerParams) ResultSRTMpegTSStreamer {
 
 func (c *SRTMpegTSStreamer) Match(req *entities.RequestParams) bool {
 	if req.SRTHost != "" {
-		return true
+		return false
 	}
 	return false
 }
