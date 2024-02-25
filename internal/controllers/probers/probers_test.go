@@ -14,7 +14,7 @@ import (
 
 var p []probers.DonutProber
 
-func setupController(t *testing.T, req *entities.RequestParams) probers.DonutProber {
+func selectProberFor(t *testing.T, req *entities.RequestParams) probers.DonutProber {
 	if p == nil {
 		fxtest.New(t,
 			web.Dependencies(false),
@@ -34,7 +34,7 @@ func setupController(t *testing.T, req *entities.RequestParams) probers.DonutPro
 	return nil
 }
 
-func TestSrtMpegTs_StreamInfo(t *testing.T) {
+func TestSrtMpegTs_StreamInfo_264(t *testing.T) {
 	t.Parallel()
 	ffmpeg := teststreaming.FFMPEG_LIVE_SRT_MPEG_TS_H264_AAC
 
@@ -47,9 +47,9 @@ func TestSrtMpegTs_StreamInfo(t *testing.T) {
 		SRTStreamID: "test_id",
 	}
 
-	controller := setupController(t, req)
+	prober := selectProberFor(t, req)
 
-	streamInfo, err := controller.StreamInfo(req)
+	streamInfo, err := prober.StreamInfo(req)
 
 	assert.Nil(t, err)
 	assert.NotNil(t, streamInfo)
@@ -69,9 +69,9 @@ func TestSrtMpegTs_StreamInfo_265(t *testing.T) {
 		SRTStreamID: "test_id",
 	}
 
-	controller := setupController(t, req)
+	prober := selectProberFor(t, req)
 
-	streamInfo, err := controller.StreamInfo(req)
+	streamInfo, err := prober.StreamInfo(req)
 
 	assert.Nil(t, err)
 	assert.NotNil(t, streamInfo)

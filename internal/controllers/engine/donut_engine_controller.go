@@ -32,12 +32,12 @@ func NewDonutEngineController(p DonutEngineParams) *DonutEngineController {
 func (c *DonutEngineController) EngineFor(req *entities.RequestParams) (DonutEngine, error) {
 	prober := c.selectProberFor(req)
 	if prober == nil {
-		return nil, fmt.Errorf("request %v: not fulfilled error %v", req, entities.ErrMissingProber)
+		return nil, fmt.Errorf("request %v: not fulfilled error %w", req, entities.ErrMissingProber)
 	}
 
 	streamer := c.selectStreamerFor(req)
 	if prober == nil {
-		return nil, fmt.Errorf("request %v: not fulfilled error %v", req, entities.ErrMissingStreamer)
+		return nil, fmt.Errorf("request %v: not fulfilled error %w", req, entities.ErrMissingStreamer)
 	}
 
 	return &donutEngine{

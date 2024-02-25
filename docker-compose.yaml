@@ -5,6 +5,16 @@ services:
     build:
       context: .
     working_dir: "/app"
+    # Platform is being enforced here to solve issues like:
+    # issue /usr/bin/ld: skipping incompatible /usr/local/lib/libavdevice.so when searching for -lavdevice
+    #
+    # The tools to check the compiled objects format showed:
+    # objdump -a /opt/srt_lib/lib/libsrt.so (file format elf64-littleaarch64)
+    # objdump -a /usr/local/lib/libavformat.so (file format elf64-little)
+    #
+    # Once the platform was fixed, the problem disappeared. Even though the configured platform
+    # is amd64, the final objects are x64, don't know why yet.
+    platform: "linux/amd64"
     volumes:
       - "./:/app/"
     ports:
@@ -22,6 +32,7 @@ services:
       context: .
       dockerfile: Dockerfile-dev
     working_dir: "/app"
+    platform: "linux/amd64"
     volumes:
       - "./:/app/"
     command: "go test -v ./..."
@@ -31,6 +42,7 @@ services:
       context: .
       dockerfile: Dockerfile-dev
     working_dir: "/app"
+    platform: "linux/amd64"
     volumes:
       - "./:/app/"
     command: "golangci-lint run -v"

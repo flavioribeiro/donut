@@ -3,8 +3,8 @@ package entities
 import (
 	"context"
 	"fmt"
+	"time"
 
-	"github.com/asticode/go-astits"
 	"github.com/pion/webrtc/v3"
 )
 
@@ -80,6 +80,16 @@ type Stream struct {
 	Codec Codec
 	Type  MediaType
 	Id    uint16
+	Index uint16
+}
+
+type MediaFrameContext struct {
+	// DTS decoding timestamp
+	DTS int
+	// PTS presentation timestamp
+	PTS int
+	// Media frame duration
+	Duration time.Duration
 }
 
 type StreamInfo struct {
@@ -112,22 +122,22 @@ type Cue struct {
 	Text      string
 }
 
-type StreamParameters struct {
-	WebRTCConn        *webrtc.PeerConnection
-	Cancel            context.CancelFunc
-	Ctx               context.Context
-	RequestParams     *RequestParams
-	VideoTrack        *webrtc.TrackLocalStaticSample
-	MetadataTrack     *webrtc.DataChannel
-	ServerStreamInfo  *StreamInfo
-	ClientStreamInfo  *StreamInfo
-	StreamMiddlewares []StreamMiddleware
-}
+type DonutParameters struct {
+	Cancel context.CancelFunc
+	Ctx    context.Context
 
-// StreamMiddleware is a component to act while streaming.
-// Most implementations are at /internal/controllers/streammiddlewares/
-type StreamMiddleware interface {
-	Act(mpegTSDemuxData *astits.DemuxerData, sp *StreamParameters) error
+	StreamID     string // ie: live001, channel01
+	StreamFormat string // ie: flv, mpegts
+	StreamURL    string // ie: srt://host:9080, rtmp://host:4991
+
+	TranscodeVideoCodec Codec // ie: vp8
+	TranscodeAudioCodec Codec // ie: opus
+
+	OnClose      func()
+	OnError      func(err error)
+	OnStream     func(st *Stream)
+	OnVideoFrame func(data []byte, c MediaFrameContext) error
+	OnAudioFrame func(data []byte, c MediaFrameContext) error
 }
 
 type Config struct {

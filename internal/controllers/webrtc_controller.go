@@ -7,6 +7,7 @@ import (
 	"github.com/flavioribeiro/donut/internal/entities"
 	"github.com/flavioribeiro/donut/internal/mapper"
 	"github.com/pion/webrtc/v3"
+	"github.com/pion/webrtc/v3/pkg/media"
 	"go.uber.org/zap"
 )
 
@@ -116,6 +117,13 @@ func (c *WebRTCController) GatheringWebRTC(peer *webrtc.PeerConnection) (*webrtc
 	c.l.Infow("Gathering WebRTC Candidates Complete")
 
 	return peer.LocalDescription(), nil
+}
+
+func (c *WebRTCController) SendVideoSample(videoTrack *webrtc.TrackLocalStaticSample, data []byte, mediaCtx entities.MediaFrameContext) error {
+	if err := videoTrack.WriteSample(media.Sample{Data: data, Duration: mediaCtx.Duration}); err != nil {
+		return err
+	}
+	return nil
 }
 
 func NewWebRTCSettingsEngine(c *entities.Config, tcpListener net.Listener, udpListener net.PacketConn) webrtc.SettingEngine {
