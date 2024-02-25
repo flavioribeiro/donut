@@ -27,6 +27,8 @@ go donutEngine.Stream(
 )
 ```
 
+ref https://wiki.xiph.org/Opus_Recommended_Settings 48000 webrtc
+
 ## Date: 2/4/24
 ### Summary: Adding audio track
 

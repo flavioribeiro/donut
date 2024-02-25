@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/flavioribeiro/donut/internal/controllers"
@@ -80,7 +81,7 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 		h.l.Info("we must transcode")
 	}
 
-	if compatibleStreams == nil || len(compatibleStreams) == 0 {
+	if len(compatibleStreams) == 0 {
 		return entities.ErrMissingCompatibleStreams
 	}
 
@@ -118,15 +119,33 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 		return err
 	}
 
-	go donutEngine.Streamer().Stream(&entities.StreamParameters{
-		Cancel:           cancel,
-		Ctx:              ctx,
-		WebRTCConn:       peer,
-		RequestParams:    &params,
-		VideoTrack:       videoTrack,
-		MetadataTrack:    metadataSender,
-		ServerStreamInfo: serverStreamInfo,
-		ClientStreamInfo: clientStreamInfo,
+	go donutEngine.Streamer().Stream(&entities.DonutParameters{
+		Cancel: cancel,
+		Ctx:    ctx,
+
+		// TODO: add an UI element for the sub-type (format) when input is srt://
+		// We're assuming that SRT is carrying mpegts.
+		StreamFormat: "mpegts",
+		StreamID:     params.SRTStreamID,
+		StreamURL:    fmt.Sprintf("srt://%s:%d", params.SRTHost, params.SRTPort),
+
+		OnClose: func() {
+			cancel()
+			peer.Close()
+		},
+		OnError: func(err error) {
+			h.l.Errorw("error while streaming", "error", err)
+		},
+		OnStream: func(st *entities.Stream) {
+			h.sendStreamInfoToMetadata(st, metadataSender)
+		},
+		OnVideoFrame: func(data []byte, c entities.MediaFrameContext) error {
+			return h.webRTCController.SendVideoSample(videoTrack, data, c)
+		},
+		OnAudioFrame: func(data []byte, c entities.MediaFrameContext) error {
+			// TODO: implement
+			return nil
+		},
 	})
 
 	w.Header().Set("Content-Type", "application/json")
@@ -138,6 +157,16 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 	}
 
 	return nil
+}
+
+func (h *SignalingHandler) sendStreamInfoToMetadata(st *entities.Stream, md *webrtc.DataChannel) {
+	msg := h.mapper.FromStreamToEntityMessage(*st)
+	msgBytes, err := json.Marshal(msg)
+	if err != nil {
+		h.l.Errorw("error marshalling stream message", "error", err)
+		return
+	}
+	md.SendText(string(msgBytes))
 }
 
 func (h *SignalingHandler) createAndValidateParams(w http.ResponseWriter, r *http.Request) (entities.RequestParams, error) {
