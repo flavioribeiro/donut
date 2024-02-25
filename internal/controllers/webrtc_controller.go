@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"encoding/json"
 	"net"
 
 	"github.com/flavioribeiro/donut/internal/entities"
@@ -121,6 +122,19 @@ func (c *WebRTCController) GatheringWebRTC(peer *webrtc.PeerConnection) (*webrtc
 
 func (c *WebRTCController) SendVideoSample(videoTrack *webrtc.TrackLocalStaticSample, data []byte, mediaCtx entities.MediaFrameContext) error {
 	if err := videoTrack.WriteSample(media.Sample{Data: data, Duration: mediaCtx.Duration}); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *WebRTCController) SendMetadata(metaTrack *webrtc.DataChannel, st *entities.Stream) error {
+	msg := c.m.FromStreamToEntityMessage(*st)
+	msgBytes, err := json.Marshal(msg)
+	if err != nil {
+		return err
+	}
+	err = metaTrack.SendText(string(msgBytes))
+	if err != nil {
 		return err
 	}
 	return nil

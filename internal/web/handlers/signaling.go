@@ -137,7 +137,9 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 			h.l.Errorw("error while streaming", "error", err)
 		},
 		OnStream: func(st *entities.Stream) {
-			h.sendStreamInfoToMetadata(st, metadataSender)
+			if err := h.webRTCController.SendMetadata(metadataSender, st); err != nil {
+				h.l.Errorw("error while sending metadata", "error", err)
+			}
 		},
 		OnVideoFrame: func(data []byte, c entities.MediaFrameContext) error {
 			return h.webRTCController.SendVideoSample(videoTrack, data, c)
@@ -157,16 +159,6 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 	}
 
 	return nil
-}
-
-func (h *SignalingHandler) sendStreamInfoToMetadata(st *entities.Stream, md *webrtc.DataChannel) {
-	msg := h.mapper.FromStreamToEntityMessage(*st)
-	msgBytes, err := json.Marshal(msg)
-	if err != nil {
-		h.l.Errorw("error marshalling stream message", "error", err)
-		return
-	}
-	md.SendText(string(msgBytes))
 }
 
 func (h *SignalingHandler) createAndValidateParams(w http.ResponseWriter, r *http.Request) (entities.RequestParams, error) {

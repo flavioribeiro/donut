@@ -114,6 +114,11 @@ func (m *Mapper) FromWebRTCSessionDescriptionToStreamInfo(desc webrtc.SessionDes
 						Codec: entities.H265,
 						Type:  mediaType,
 					}
+				} else if strings.Contains(a.Value, "VP8") {
+					unique[entities.VP8] = entities.Stream{
+						Codec: entities.VP8,
+						Type:  mediaType,
+					}
 				} else if strings.Contains(a.Value, "VP9") {
 					unique[entities.VP9] = entities.Stream{
 						Codec: entities.VP9,
@@ -182,6 +187,10 @@ func (m *Mapper) FromLibAVStreamToEntityStream(libavStream *astiav.Stream) entit
 		st.Codec = entities.AV1
 	} else if libavStream.CodecParameters().CodecID().Name() == "aac" {
 		st.Codec = entities.AAC
+	} else if libavStream.CodecParameters().CodecID().Name() == "vp8" {
+		st.Codec = entities.VP8
+	} else if libavStream.CodecParameters().CodecID().Name() == "vp9" {
+		st.Codec = entities.VP9
 	} else if libavStream.CodecParameters().CodecID().Name() == "opus" {
 		st.Codec = entities.Opus
 	} else {

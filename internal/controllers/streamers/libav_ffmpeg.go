@@ -10,6 +10,7 @@ import (
 	"github.com/asticode/go-astiav"
 	"github.com/asticode/go-astikit"
 	"github.com/flavioribeiro/donut/internal/entities"
+	"github.com/flavioribeiro/donut/internal/mapper"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
 )
@@ -17,6 +18,7 @@ import (
 type LibAVFFmpegStreamer struct {
 	c *entities.Config
 	l *zap.SugaredLogger
+	m *mapper.Mapper
 
 	lastAudioFrameDTS     float64
 	currentAudioFrameSize float64
@@ -26,6 +28,7 @@ type LibAVFFmpegStreamerParams struct {
 	fx.In
 	C *entities.Config
 	L *zap.SugaredLogger
+	M *mapper.Mapper
 }
 
 type ResultLibAVFFmpegStreamer struct {
@@ -38,6 +41,7 @@ func NewLibAVFFmpegStreamer(p LibAVFFmpegStreamerParams) ResultLibAVFFmpegStream
 		LibAVFFmpegStreamer: &LibAVFFmpegStreamer{
 			c: p.C,
 			l: p.L,
+			m: p.M,
 		},
 	}
 }
@@ -153,13 +157,13 @@ func (c *LibAVFFmpegStreamer) prepareInput(p *params, closer *astikit.Closer, do
 	}
 	inputOptions := c.defineInputOptions(donut, closer)
 	if err := p.inputFormatContext.OpenInput(donut.StreamURL, inputFormat, inputOptions); err != nil {
-		return errors.New(fmt.Sprintf("ffmpeg/libav: opening input failed %s", err.Error()))
+		return fmt.Errorf("ffmpeg/libav: opening input failed %w", err)
 	}
 
 	closer.Add(p.inputFormatContext.CloseInput)
 
 	if err := p.inputFormatContext.FindStreamInfo(nil); err != nil {
-		return errors.New(fmt.Sprintf("ffmpeg/libav: finding stream info failed %s", err.Error()))
+		return fmt.Errorf("ffmpeg/libav: finding stream info failed %w", err)
 	}
 
 	for _, is := range p.inputFormatContext.Streams() {
@@ -181,7 +185,7 @@ func (c *LibAVFFmpegStreamer) prepareInput(p *params, closer *astikit.Closer, do
 		closer.Add(s.decCodecContext.Free)
 
 		if err := is.CodecParameters().ToCodecContext(s.decCodecContext); err != nil {
-			return errors.New(fmt.Sprintf("ffmpeg/libav: updating codec context failed %s", err.Error()))
+			return fmt.Errorf("ffmpeg/libav: updating codec context failed %w", err)
 		}
 
 		if is.CodecParameters().MediaType() == astiav.MediaTypeVideo {
@@ -189,13 +193,18 @@ func (c *LibAVFFmpegStreamer) prepareInput(p *params, closer *astikit.Closer, do
 		}
 
 		if err := s.decCodecContext.Open(s.decCodec, nil); err != nil {
-			return errors.New(fmt.Sprintf("ffmpeg/libav: opening codec context failed %s", err.Error()))
+			return fmt.Errorf("ffmpeg/libav: opening codec context failed %w", err)
 		}
 
 		s.decFrame = astiav.AllocFrame()
 		closer.Add(s.decFrame.Free)
 
 		p.streams[is.Index()] = s
+
+		if donut.OnStream != nil {
+			stream := c.m.FromLibAVStreamToEntityStream(is)
+			donut.OnStream(&stream)
+		}
 	}
 	return nil
 }
@@ -204,7 +213,7 @@ func (c *LibAVFFmpegStreamer) defineInputFormat(streamFormat string) (*astiav.In
 	if streamFormat != "" {
 		inputFormat := astiav.FindInputFormat(streamFormat)
 		if inputFormat == nil {
-			return nil, errors.New(fmt.Sprintf("ffmpeg/libav: could not find %s input format", streamFormat))
+			return nil, fmt.Errorf("ffmpeg/libav: could not find %s input format", streamFormat)
 		}
 	}
 	return nil, nil
@@ -236,8 +245,12 @@ func (c *LibAVFFmpegStreamer) defineAudioDuration(s *streamContext, pkt *astiav.
 		// 1s = dur * (sample/frameSize)
 		// ref https://developer.apple.com/documentation/coreaudiotypes/audiostreambasicdescription/1423257-mframesperpacket
 
-		// TODO: handle wraparound
+		// TODO: properly handle wraparound / roll over
 		c.currentAudioFrameSize = float64(pkt.Dts()) - c.lastAudioFrameDTS
+		if c.currentAudioFrameSize < 0 {
+			c.currentAudioFrameSize = c.lastAudioFrameDTS*2 - c.lastAudioFrameDTS
+		}
+
 		c.lastAudioFrameDTS = float64(pkt.Dts())
 		sampleRate := float64(s.inputStream.CodecParameters().SampleRate())
 		audioDuration = time.Duration((c.currentAudioFrameSize / sampleRate) * float64(time.Second))
