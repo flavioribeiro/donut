@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/asticode/go-astiav"
 	"github.com/pion/webrtc/v3"
 )
 
@@ -131,8 +132,7 @@ type DonutParameters struct {
 	StreamFormat string // ie: flv, mpegts
 	StreamURL    string // ie: srt://host:9080, rtmp://host:4991
 
-	TranscodeVideoCodec Codec // ie: vp8
-	TranscodeAudioCodec Codec // ie: opus
+	Recipe *DonutTransformRecipe
 
 	OnClose      func()
 	OnError      func(err error)
@@ -140,6 +140,45 @@ type DonutParameters struct {
 	OnVideoFrame func(data []byte, c MediaFrameContext) error
 	OnAudioFrame func(data []byte, c MediaFrameContext) error
 }
+
+type DonutMediaTaskAction string
+
+var DonutTranscode DonutMediaTaskAction = "transcode"
+var DonutBypass DonutMediaTaskAction = "bypass"
+
+// TODO: split entities per domain or files avoiding cluttered names.
+
+// DonutMediaTask is a transformation template to apply over a media.
+type DonutMediaTask struct {
+	// Action the action that needs to be performed
+	Action DonutMediaTaskAction
+	// Codec is the main codec, it might be used depending on the action.
+	Codec Codec
+	// CodecContextOptions is a list of options to be applied on codec context.
+	// If no value is provided ffmpeg will use defaults.
+	// For instance, if one does not provide bit rate, it'll fallback to 64000 bps (opus)
+	CodecContextOptions []LibAVOptionsCodecContext
+}
+
+// DonutTransformRecipe is a recipe to run on medias
+type DonutTransformRecipe struct {
+	Video DonutMediaTask
+	Audio DonutMediaTask
+}
+
+// LibAVOptionsCodecContext is option pattern to change codec context
+type LibAVOptionsCodecContext func(c *astiav.CodecContext)
+
+func SetSampleRate(sampleRate int) LibAVOptionsCodecContext {
+	return func(c *astiav.CodecContext) {
+		c.SetSampleRate(sampleRate)
+	}
+}
+
+// TODO: implement proper matching
+// DonutTransformRecipe
+//  AudioTask: {Action: Transcode, From: AAC, To: Opus}
+//  VideoTask: {Action: Bypass, From: H264, To: H264}
 
 type Config struct {
 	HTTPPort       int32  `required:"true" default:"8080"`

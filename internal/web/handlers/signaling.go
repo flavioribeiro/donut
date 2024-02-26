@@ -70,40 +70,18 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 		return err
 	}
 
-	// TODO: introduce a mode to deal with transcoding recipes
-	// selects proper media that client and server has adverted.
-	// donutEngine preferable vp8, ogg???
-	// From: [] To: [] or Transcode:[], Bypass: []
-	// libav_streamer.go, libav_streamer_format.go, libav_streamer_codec.go...
-	// reads from Server (input) and generates h264 raw, and ogg and send it with timing attributes
-	compatibleStreams, ok := donutEngine.CompatibleStreamsFor(serverStreamInfo, clientStreamInfo)
-	if !ok {
-		h.l.Info("we must transcode")
-	}
-
-	if len(compatibleStreams) == 0 {
+	donutRecipe := donutEngine.RecipeFor(serverStreamInfo, clientStreamInfo)
+	if donutRecipe == nil {
 		return entities.ErrMissingCompatibleStreams
 	}
 
 	var videoTrack *webrtc.TrackLocalStaticSample
-	// var audioTrack *webrtc.TrackLocalStaticSample
-
-	for _, st := range compatibleStreams {
-		// TODO: make the mapping less dependent on type
-		if st.Type == entities.VideoType {
-			videoTrack, err = h.webRTCController.CreateTrack(
-				peer,
-				st,
-				string(st.Type), // "video" or "audio"
-				params.SRTStreamID,
-			)
-			if err != nil {
-				return err
-			}
-
-		}
-		// if st.Type == entities.AudioType {
+	videoTrack, err = h.webRTCController.CreateTrack(peer, donutRecipe.Video.Codec, string(entities.VideoType), params.SRTStreamID)
+	if err != nil {
+		return err
 	}
+
+	// var audioTrack *webrtc.TrackLocalStaticSample
 
 	metadataSender, err := h.webRTCController.CreateDataChannel(peer, entities.MetadataChannelID)
 	if err != nil {
@@ -122,6 +100,8 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 	go donutEngine.Streamer().Stream(&entities.DonutParameters{
 		Cancel: cancel,
 		Ctx:    ctx,
+
+		Recipe: donutRecipe,
 
 		// TODO: add an UI element for the sub-type (format) when input is srt://
 		// We're assuming that SRT is carrying mpegts.

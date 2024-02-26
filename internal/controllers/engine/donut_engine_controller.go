@@ -12,7 +12,7 @@ import (
 type DonutEngine interface {
 	Prober() probers.DonutProber
 	Streamer() streamers.DonutStreamer
-	CompatibleStreamsFor(server, client *entities.StreamInfo) ([]entities.Stream, bool)
+	RecipeFor(server, client *entities.StreamInfo) *entities.DonutTransformRecipe
 }
 
 type DonutEngineParams struct {
@@ -79,7 +79,22 @@ func (d *donutEngine) Streamer() streamers.DonutStreamer {
 	return d.streamer
 }
 
-func (d *donutEngine) CompatibleStreamsFor(server, client *entities.StreamInfo) ([]entities.Stream, bool) {
+func (d *donutEngine) RecipeFor(server, client *entities.StreamInfo) *entities.DonutTransformRecipe {
 	// TODO: implement proper matching
-	return server.Streams, true
+	r := &entities.DonutTransformRecipe{
+		Video: entities.DonutMediaTask{
+			Action: entities.DonutBypass,
+		},
+		Audio: entities.DonutMediaTask{
+			Action: entities.DonutTranscode,
+			Codec:  entities.Opus,
+			// TODO: create method list options per Codec
+			CodecContextOptions: []entities.LibAVOptionsCodecContext{
+				// opus specifically works under 48000 Hz
+				entities.SetSampleRate(48000),
+			},
+		},
+	}
+
+	return r
 }
