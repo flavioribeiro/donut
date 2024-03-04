@@ -53,7 +53,7 @@ func (c *LibAVFFmpeg) StreamInfo(req *entities.RequestParams) (*entities.StreamI
 	}
 	closer.Add(inputFormatContext.Free)
 
-	// TODO: add an UI element for sub-type (format) when input is srt:// (defaulting to mpeg-ts)
+	// TODO: implement proper handler per req
 	userProvidedInputFormat := "mpegts"
 	// We're assuming that SRT is carrying mpegts.
 	//

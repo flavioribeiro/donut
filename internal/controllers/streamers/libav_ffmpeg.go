@@ -255,7 +255,10 @@ func (c *LibAVFFmpegStreamer) prepareInput(p *libAVParams, closer *astikit.Close
 
 		if donut.OnStream != nil {
 			stream := c.m.FromLibAVStreamToEntityStream(is)
-			donut.OnStream(&stream)
+			err := donut.OnStream(&stream)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -586,11 +589,12 @@ func (c *LibAVFFmpegStreamer) defineInputOptions(p *entities.DonutParameters, cl
 func (c *LibAVFFmpegStreamer) defineAudioDuration(s *streamContext, pkt *astiav.Packet) time.Duration {
 	audioDuration := time.Duration(0)
 	if s.inputStream.CodecParameters().MediaType() == astiav.MediaTypeAudio {
+
 		// Audio
 		//
-		// dur = 0,023219954648526078
-		// sample = 44100
-		// frameSize = 1024 (or 960 for aac, but it could be variable for opus)
+		// dur = 12.416666ms
+		// sample = 48000
+		// frameSize = 596 (it can be variable for opus)
 		// 1s = dur * (sample/frameSize)
 		// ref https://developer.apple.com/documentation/coreaudiotypes/audiostreambasicdescription/1423257-mframesperpacket
 
@@ -602,7 +606,7 @@ func (c *LibAVFFmpegStreamer) defineAudioDuration(s *streamContext, pkt *astiav.
 		}
 
 		c.lastAudioFrameDTS = float64(pkt.Dts())
-		sampleRate := float64(s.inputStream.CodecParameters().SampleRate())
+		sampleRate := float64(s.encCodecContext.SampleRate())
 		audioDuration = time.Duration((c.currentAudioFrameSize / sampleRate) * float64(time.Second))
 	}
 	return audioDuration

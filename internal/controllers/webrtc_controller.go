@@ -33,6 +33,47 @@ func NewWebRTCController(
 	}
 }
 
+func (c *WebRTCController) Setup(cancel context.CancelFunc, donutRecipe *entities.DonutRecipe, params entities.RequestParams) (*entities.WebRTCSetupResponse, error) {
+	response := &entities.WebRTCSetupResponse{}
+	peer, err := c.CreatePeerConnection(cancel)
+	if err != nil {
+		return nil, err
+	}
+	response.Connection = peer
+
+	var videoTrack *webrtc.TrackLocalStaticSample
+	videoTrack, err = c.CreateTrack(peer, donutRecipe.Video.Codec, string(entities.VideoType), params.SRTStreamID)
+	if err != nil {
+		return nil, err
+	}
+	response.Video = videoTrack
+
+	var audioTrack *webrtc.TrackLocalStaticSample
+	audioTrack, err = c.CreateTrack(peer, donutRecipe.Audio.Codec, string(entities.AudioType), params.SRTStreamID)
+	if err != nil {
+		return nil, err
+	}
+	response.Audio = audioTrack
+
+	metadataSender, err := c.CreateDataChannel(peer, entities.MetadataChannelID)
+	if err != nil {
+		return nil, err
+	}
+	response.Data = metadataSender
+
+	if err = c.SetRemoteDescription(peer, params.Offer); err != nil {
+		return nil, err
+	}
+
+	localDescription, err := c.GatheringWebRTC(peer)
+	if err != nil {
+		return nil, err
+	}
+	response.LocalSDP = localDescription
+
+	return response, nil
+}
+
 func (c *WebRTCController) CreatePeerConnection(cancel context.CancelFunc) (*webrtc.PeerConnection, error) {
 	c.l.Infow("trying to set up web rtc conn")
 
@@ -104,7 +145,6 @@ func (c *WebRTCController) SetRemoteDescription(peer *webrtc.PeerConnection, des
 }
 
 func (c *WebRTCController) GatheringWebRTC(peer *webrtc.PeerConnection) (*webrtc.SessionDescription, error) {
-
 	c.l.Infow("Gathering WebRTC Candidates")
 	gatherComplete := webrtc.GatheringCompletePromise(peer)
 	answer, err := peer.CreateAnswer(nil)
@@ -120,8 +160,8 @@ func (c *WebRTCController) GatheringWebRTC(peer *webrtc.PeerConnection) (*webrtc
 	return peer.LocalDescription(), nil
 }
 
-func (c *WebRTCController) SendVideoSample(videoTrack *webrtc.TrackLocalStaticSample, data []byte, mediaCtx entities.MediaFrameContext) error {
-	if err := videoTrack.WriteSample(media.Sample{Data: data, Duration: mediaCtx.Duration}); err != nil {
+func (c *WebRTCController) SendMediaSample(mediaTrack *webrtc.TrackLocalStaticSample, data []byte, mediaCtx entities.MediaFrameContext) error {
+	if err := mediaTrack.WriteSample(media.Sample{Data: data, Duration: mediaCtx.Duration}); err != nil {
 		return err
 	}
 	return nil

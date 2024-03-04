@@ -10,7 +10,6 @@ import (
 	"github.com/flavioribeiro/donut/internal/controllers/engine"
 	"github.com/flavioribeiro/donut/internal/entities"
 	"github.com/flavioribeiro/donut/internal/mapper"
-	"github.com/pion/webrtc/v3"
 	"go.uber.org/zap"
 )
 
@@ -44,28 +43,18 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 		return err
 	}
 
-	// It decides which prober and streamer should be used based on the parameters (server-side protocol).
 	donutEngine, err := h.donut.EngineFor(&params)
 	if err != nil {
 		return err
 	}
 
-	// real stream info from server
-	serverStreamInfo, err := donutEngine.Prober().StreamInfo(&params)
+	// server side media info
+	serverStreamInfo, err := donutEngine.ServerIngredients(&params)
 	if err != nil {
 		return err
 	}
-
-	// client stream info support from the client (browser)
-	// TODO: evaluate to move this code either inside webrtc or to a prober
-	clientStreamInfo, err := h.mapper.FromWebRTCSessionDescriptionToStreamInfo(params.Offer)
-	if err != nil {
-		return err
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-
-	peer, err := h.webRTCController.CreatePeerConnection(cancel)
+	// client side media support
+	clientStreamInfo, err := donutEngine.ClientIngredients(&params)
 	if err != nil {
 		return err
 	}
@@ -75,33 +64,15 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 		return entities.ErrMissingCompatibleStreams
 	}
 
-	var videoTrack *webrtc.TrackLocalStaticSample
-	videoTrack, err = h.webRTCController.CreateTrack(peer, donutRecipe.Video.Codec, string(entities.VideoType), params.SRTStreamID)
+	// We can't defer calling cancel here because it'll live alongside the stream.
+	ctx, cancel := context.WithCancel(context.Background())
+	webRTCResponse, err := h.webRTCController.Setup(cancel, donutRecipe, params)
 	if err != nil {
+		cancel()
 		return err
 	}
 
-	var audioTrack *webrtc.TrackLocalStaticSample
-	audioTrack, err = h.webRTCController.CreateTrack(peer, donutRecipe.Audio.Codec, string(entities.AudioType), params.SRTStreamID)
-	if err != nil {
-		return err
-	}
-
-	metadataSender, err := h.webRTCController.CreateDataChannel(peer, entities.MetadataChannelID)
-	if err != nil {
-		return err
-	}
-
-	if err = h.webRTCController.SetRemoteDescription(peer, params.Offer); err != nil {
-		return err
-	}
-
-	localDescription, err := h.webRTCController.GatheringWebRTC(peer)
-	if err != nil {
-		return err
-	}
-
-	go donutEngine.Streamer().Stream(&entities.DonutParameters{
+	go donutEngine.Serve(&entities.DonutParameters{
 		Cancel: cancel,
 		Ctx:    ctx,
 
@@ -111,31 +82,28 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 
 		OnClose: func() {
 			cancel()
-			peer.Close()
+			webRTCResponse.Connection.Close()
 		},
 		OnError: func(err error) {
 			h.l.Errorw("error while streaming", "error", err)
 		},
-		OnStream: func(st *entities.Stream) {
-			if err := h.webRTCController.SendMetadata(metadataSender, st); err != nil {
-				h.l.Errorw("error while sending metadata", "error", err)
-			}
+		OnStream: func(st *entities.Stream) error {
+			return h.webRTCController.SendMetadata(webRTCResponse.Data, st)
 		},
 		OnVideoFrame: func(data []byte, c entities.MediaFrameContext) error {
-			return h.webRTCController.SendVideoSample(videoTrack, data, c)
+			return h.webRTCController.SendMediaSample(webRTCResponse.Video, data, c)
 		},
 		OnAudioFrame: func(data []byte, c entities.MediaFrameContext) error {
-			// TODO: implement
-			// audioTrack
-			return h.webRTCController.SendVideoSample(audioTrack, data, c)
+			return h.webRTCController.SendMediaSample(webRTCResponse.Audio, data, c)
 		},
 	})
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 
-	err = json.NewEncoder(w).Encode(*localDescription)
+	err = json.NewEncoder(w).Encode(*webRTCResponse.LocalSDP)
 	if err != nil {
+		cancel()
 		return err
 	}
 

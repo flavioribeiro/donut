@@ -13,6 +13,14 @@ const (
 	MetadataChannelID string = "metadata"
 )
 
+type WebRTCSetupResponse struct {
+	Connection *webrtc.PeerConnection
+	Video      *webrtc.TrackLocalStaticSample
+	Audio      *webrtc.TrackLocalStaticSample
+	Data       *webrtc.DataChannel
+	LocalSDP   *webrtc.SessionDescription
+}
+
 type RequestParams struct {
 	SRTHost     string
 	SRTPort     uint16 `json:",string"`
@@ -134,7 +142,7 @@ type DonutParameters struct {
 
 	OnClose      func()
 	OnError      func(err error)
-	OnStream     func(st *Stream)
+	OnStream     func(st *Stream) error
 	OnVideoFrame func(data []byte, c MediaFrameContext) error
 	OnAudioFrame func(data []byte, c MediaFrameContext) error
 }

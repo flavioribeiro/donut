@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/asticode/go-astiav"
-	"github.com/asticode/go-astits"
 	"github.com/flavioribeiro/donut/internal/entities"
 	"github.com/pion/webrtc/v3"
 	"go.uber.org/zap"
@@ -35,43 +34,6 @@ func (m *Mapper) FromTrackToRTPCodecCapability(codec entities.Codec) webrtc.RTPC
 	}
 
 	return response
-}
-
-func (m *Mapper) FromMpegTsStreamTypeToCodec(st astits.StreamType) entities.Codec {
-	if st == astits.StreamTypeH264Video {
-		return entities.H264
-	}
-	if st == astits.StreamTypeH265Video {
-		return entities.H265
-	}
-	if st == astits.StreamTypeAACAudio {
-		return entities.AAC
-	}
-	m.l.Info("[[[[TODO: mapper not implemented]]]] for ", st)
-	return entities.UnknownCodec
-}
-
-func (m *Mapper) FromMpegTsStreamTypeToType(st astits.StreamType) entities.MediaType {
-	if st.IsVideo() {
-		return entities.VideoType
-	}
-	if st.IsAudio() {
-		return entities.AudioType
-	}
-	m.l.Info("[[[[TODO: mapper not implemented]]]] for ", st)
-	return entities.UnknownType
-}
-
-func (m *Mapper) FromStreamTypeToEntityStream(es *astits.PMTElementaryStream) entities.Stream {
-	return entities.Stream{
-		Codec: m.FromMpegTsStreamTypeToCodec(es.StreamType),
-		Type:  m.FromMpegTsStreamTypeToType(es.StreamType),
-		Id:    m.FromMpegTsStreamTypeToID(es),
-	}
-}
-
-func (m *Mapper) FromMpegTsStreamTypeToID(es *astits.PMTElementaryStream) uint16 {
-	return es.ElementaryPID
 }
 
 func (m *Mapper) FromWebRTCSessionDescriptionToStreamInfo(desc webrtc.SessionDescription) (*entities.StreamInfo, error) {

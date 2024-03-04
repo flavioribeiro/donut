@@ -5,8 +5,6 @@ go 1.19
 require (
 	github.com/asticode/go-astiav v0.12.0
 	github.com/asticode/go-astikit v0.36.0
-	github.com/asticode/go-astisrt v0.3.0
-	github.com/asticode/go-astits v1.11.0
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/pion/webrtc/v3 v3.1.47
 	github.com/stretchr/testify v1.8.0
