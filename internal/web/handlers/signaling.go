@@ -70,7 +70,7 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 		return err
 	}
 
-	donutRecipe := donutEngine.RecipeFor(serverStreamInfo, clientStreamInfo)
+	donutRecipe := donutEngine.RecipeFor(&params, serverStreamInfo, clientStreamInfo)
 	if donutRecipe == nil {
 		return entities.ErrMissingCompatibleStreams
 	}
@@ -101,13 +101,9 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 		Cancel: cancel,
 		Ctx:    ctx,
 
-		Recipe: donutRecipe,
+		Recipe: *donutRecipe,
 
-		// TODO: add an UI element for the sub-type (format) when input is srt://
-		// We're assuming that SRT is carrying mpegts.
-		StreamFormat: "mpegts",
-		StreamID:     params.SRTStreamID,
-		StreamURL:    fmt.Sprintf("srt://%s:%d", params.SRTHost, params.SRTPort),
+		StreamURL: fmt.Sprintf("srt://%s:%d", params.SRTHost, params.SRTPort),
 
 		OnClose: func() {
 			cancel()

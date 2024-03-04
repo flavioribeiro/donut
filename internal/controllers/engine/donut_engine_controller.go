@@ -12,7 +12,7 @@ import (
 type DonutEngine interface {
 	Prober() probers.DonutProber
 	Streamer() streamers.DonutStreamer
-	RecipeFor(server, client *entities.StreamInfo) *entities.DonutTransformRecipe
+	RecipeFor(req *entities.RequestParams, server, client *entities.StreamInfo) *entities.DonutRecipe
 }
 
 type DonutEngineParams struct {
@@ -79,11 +79,20 @@ func (d *donutEngine) Streamer() streamers.DonutStreamer {
 	return d.streamer
 }
 
-func (d *donutEngine) RecipeFor(server, client *entities.StreamInfo) *entities.DonutTransformRecipe {
+func (d *donutEngine) RecipeFor(req *entities.RequestParams, server, client *entities.StreamInfo) *entities.DonutRecipe {
 	// TODO: implement proper matching
-	r := &entities.DonutTransformRecipe{
+	r := &entities.DonutRecipe{
+		Input: entities.DonutInput{
+			Format: "mpegts", // it'll change based on input, i.e. rmtp flv
+			Options: map[entities.DonutInputOptionKey]string{
+				entities.DonutSRTStreamID:  req.SRTStreamID,
+				entities.DonutSRTTranstype: "live",
+				entities.DonutSRTsmoother:  "live",
+			},
+		},
 		Video: entities.DonutMediaTask{
 			Action: entities.DonutBypass,
+			Codec:  entities.H264,
 		},
 		Audio: entities.DonutMediaTask{
 			Action: entities.DonutTranscode,
@@ -92,6 +101,10 @@ func (d *donutEngine) RecipeFor(server, client *entities.StreamInfo) *entities.D
 			CodecContextOptions: []entities.LibAVOptionsCodecContext{
 				// opus specifically works under 48000 Hz
 				entities.SetSampleRate(48000),
+				// once we changed the sample rate we need to update the time base
+				entities.SetTimeBase(1, 48000),
+				// for some reason it's setting "s16"
+				// entities.SetSampleFormat("fltp"),
 			},
 		},
 	}

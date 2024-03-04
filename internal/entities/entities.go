@@ -128,11 +128,9 @@ type DonutParameters struct {
 	Cancel context.CancelFunc
 	Ctx    context.Context
 
-	StreamID     string // ie: live001, channel01
-	StreamFormat string // ie: flv, mpegts
-	StreamURL    string // ie: srt://host:9080, rtmp://host:4991
+	StreamURL string // ie: srt://host:9080, rtmp://host:4991
 
-	Recipe *DonutTransformRecipe
+	Recipe DonutRecipe
 
 	OnClose      func()
 	OnError      func(err error)
@@ -146,7 +144,7 @@ type DonutMediaTaskAction string
 var DonutTranscode DonutMediaTaskAction = "transcode"
 var DonutBypass DonutMediaTaskAction = "bypass"
 
-// TODO: split entities per domain or files avoiding cluttered names.
+// TODO: split entities per domain or files avoiding name collision.
 
 // DonutMediaTask is a transformation template to apply over a media.
 type DonutMediaTask struct {
@@ -160,18 +158,65 @@ type DonutMediaTask struct {
 	CodecContextOptions []LibAVOptionsCodecContext
 }
 
-// DonutTransformRecipe is a recipe to run on medias
-type DonutTransformRecipe struct {
+type DonutInputOptionKey string
+
+func (d DonutInputOptionKey) String() string {
+	return string(d)
+}
+
+var DonutSRTStreamID DonutInputOptionKey = "srt_streamid"
+var DonutSRTsmoother DonutInputOptionKey = "smoother"
+var DonutSRTTranstype DonutInputOptionKey = "transtype"
+
+type DonutInputFormat string
+
+func (d DonutInputFormat) String() string {
+	return string(d)
+}
+
+var DonutMpegTSFormat DonutInputFormat = "mpegts"
+var DonutFLVFormat DonutInputFormat = "flv"
+
+type DonutInput struct {
+	Format  DonutInputFormat
+	Options map[DonutInputOptionKey]string
+}
+
+type DonutRecipe struct {
+	Input DonutInput
 	Video DonutMediaTask
 	Audio DonutMediaTask
 }
 
-// LibAVOptionsCodecContext is option pattern to change codec context
 type LibAVOptionsCodecContext func(c *astiav.CodecContext)
 
 func SetSampleRate(sampleRate int) LibAVOptionsCodecContext {
 	return func(c *astiav.CodecContext) {
 		c.SetSampleRate(sampleRate)
+	}
+}
+
+func SetTimeBase(num, den int) LibAVOptionsCodecContext {
+	return func(c *astiav.CodecContext) {
+		c.SetTimeBase(astiav.NewRational(num, den))
+	}
+}
+
+// SetSampleFormat sets sample format,
+// CAUTION it only contains partial list of fmt
+// TODO: move it to mappers
+func SetSampleFormat(fmt string) LibAVOptionsCodecContext {
+	var sf astiav.SampleFormat
+	if fmt == "fltp" {
+		sf = astiav.SampleFormatFltp
+	} else if fmt == "flt" {
+		sf = astiav.SampleFormatFlt
+	} else {
+		// DANGER: assuming a default value
+		sf = astiav.SampleFormatS16
+	}
+	return func(c *astiav.CodecContext) {
+		c.SetSampleFormat(sf)
 	}
 }
 

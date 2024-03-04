@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
+	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -57,6 +60,12 @@ type streamContext struct {
 	decCodecContext *astiav.CodecContext
 	decFrame        *astiav.Frame
 
+	// FILTER
+	filterGraph       *astiav.FilterGraph
+	buffersinkContext *astiav.FilterContext
+	buffersrcContext  *astiav.FilterContext
+	filterFrame       *astiav.Frame
+
 	// OUT
 	encCodec        *astiav.Codec
 	encCodecContext *astiav.CodecContext
@@ -78,7 +87,7 @@ func (c *LibAVFFmpegStreamer) Stream(donut *entities.DonutParameters) {
 		streams: make(map[int]*streamContext),
 	}
 
-	// it's really useful for debugging
+	// it's useful for debugging
 	astiav.SetLogLevel(astiav.LogLevelDebug)
 	astiav.SetLogCallback(func(l astiav.LogLevel, fmt, msg, parent string) {
 		c.l.Infof("ffmpeg %s: - %s", c.libAVLogToString(l), strings.TrimSpace(msg))
@@ -89,15 +98,12 @@ func (c *LibAVFFmpegStreamer) Stream(donut *entities.DonutParameters) {
 		return
 	}
 
-	// the audio codec opus expects 48000 (for webrtc), therefore filters are needed
-	// so one can upscale 44100 to 48000 frames/samples through filters
-	// https://ffmpeg.org/ffmpeg-filters.html#aformat
-	// https://ffmpeg.org/ffmpeg-filters.html#aresample-1
-	// https://github.com/FFmpeg/FFmpeg/blob/8b6219a99d80cabf87c50170c009fe93092e32bd/doc/examples/resample_audio.c#L133
-	// https://github.com/FFmpeg/FFmpeg/blob/8b6219a99d80cabf87c50170c009fe93092e32bd/doc/examples/mux.c#L295
-	// ffmpeg error: more samples than frame size
-
 	if err := c.prepareOutput(p, closer, donut); err != nil {
+		c.onError(err, donut)
+		return
+	}
+
+	if err := c.prepareFilters(p, closer, donut); err != nil {
 		c.onError(err, donut)
 		return
 	}
@@ -109,25 +115,26 @@ func (c *LibAVFFmpegStreamer) Stream(donut *entities.DonutParameters) {
 		select {
 		case <-donut.Ctx.Done():
 			if errors.Is(donut.Ctx.Err(), context.Canceled) {
-				c.l.Infow("streaming has stopped due cancellation")
+				c.l.Info("streaming has stopped due cancellation")
 				return
 			}
 			c.onError(donut.Ctx.Err(), donut)
 			return
 		default:
-
 			if err := p.inputFormatContext.ReadFrame(inPkt); err != nil {
 				if errors.Is(err, astiav.ErrEof) {
-					break
+					c.l.Info("streaming has ended")
+					return
 				}
 				c.onError(err, donut)
 			}
 
 			s, ok := p.streams[inPkt.StreamIndex()]
 			if !ok {
+				c.l.Warnf("cannot find stream id=%d", inPkt.StreamIndex())
 				continue
 			}
-			// TODO: understand why it's necessary
+
 			inPkt.RescaleTs(s.inputStream.TimeBase(), s.decCodecContext.TimeBase())
 
 			isVideo := s.decCodecContext.MediaType() == astiav.MediaTypeVideo
@@ -162,14 +169,12 @@ func (c *LibAVFFmpegStreamer) Stream(donut *entities.DonutParameters) {
 				continue
 			}
 
-			// send the coded packet (compressed/encoded frame) to the decoder
 			if err := s.decCodecContext.SendPacket(inPkt); err != nil {
 				c.onError(err, donut)
 				return
 			}
 
 			for {
-				// receive the raw frame from the decoder
 				if err := s.decCodecContext.ReceiveFrame(s.decFrame); err != nil {
 					if errors.Is(err, astiav.ErrEof) || errors.Is(err, astiav.ErrEagain) {
 						break
@@ -177,8 +182,8 @@ func (c *LibAVFFmpegStreamer) Stream(donut *entities.DonutParameters) {
 					c.onError(err, donut)
 					return
 				}
-				// send the raw frame to the encoder
-				if err := c.encodeFrame(s.decFrame, s, donut); err != nil {
+
+				if err := c.filterAndEncode(s.decFrame, s, donut); err != nil {
 					c.onError(err, donut)
 					return
 				}
@@ -199,7 +204,7 @@ func (c *LibAVFFmpegStreamer) prepareInput(p *libAVParams, closer *astikit.Close
 	}
 	closer.Add(p.inputFormatContext.Free)
 
-	inputFormat, err := c.defineInputFormat(donut.StreamFormat)
+	inputFormat, err := c.defineInputFormat(donut.Recipe.Input.Format.String())
 	if err != nil {
 		return err
 	}
@@ -223,7 +228,7 @@ func (c *LibAVFFmpegStreamer) prepareInput(p *libAVParams, closer *astikit.Close
 		s := &streamContext{inputStream: is}
 
 		if s.decCodec = astiav.FindDecoder(is.CodecParameters().CodecID()); s.decCodec == nil {
-			return errors.New("ffmpeg/libav: codec is nil")
+			return errors.New("ffmpeg/libav: codec is missing")
 		}
 
 		if s.decCodecContext = astiav.AllocCodecContext(s.decCodec); s.decCodecContext == nil {
@@ -256,6 +261,12 @@ func (c *LibAVFFmpegStreamer) prepareInput(p *libAVParams, closer *astikit.Close
 	return nil
 }
 
+func functionNameFor(i interface{}) string {
+	fullName := runtime.FuncForPC(reflect.ValueOf(i).Pointer()).Name()
+	components := strings.Split(fullName, ".")
+	return components[len(components)-2]
+}
+
 func (c *LibAVFFmpegStreamer) prepareOutput(p *libAVParams, closer *astikit.Closer, donut *entities.DonutParameters) error {
 	for _, is := range p.inputFormatContext.Streams() {
 		s, ok := p.streams[is.Index()]
@@ -267,14 +278,14 @@ func (c *LibAVFFmpegStreamer) prepareOutput(p *libAVParams, closer *astikit.Clos
 		isVideo := s.decCodecContext.MediaType() == astiav.MediaTypeVideo
 		isVideoBypass := donut.Recipe.Video.Action == entities.DonutBypass
 		if isVideo && isVideoBypass {
-			c.l.Infof("skipping video transcoding for %+v", s.inputStream)
+			c.l.Infof("bypass video for %+v", s.inputStream)
 			continue
 		}
 
 		isAudio := s.decCodecContext.MediaType() == astiav.MediaTypeAudio
 		isAudioBypass := donut.Recipe.Audio.Action == entities.DonutBypass
 		if isAudio && isAudioBypass {
-			c.l.Infof("skipping audio transcoding for %+v", s.inputStream)
+			c.l.Infof("bypass audio for %+v", s.inputStream)
 			continue
 		}
 
@@ -300,7 +311,6 @@ func (c *LibAVFFmpegStreamer) prepareOutput(p *libAVParams, closer *astikit.Clos
 		}
 
 		if s.encCodecContext = astiav.AllocCodecContext(s.encCodec); s.encCodecContext == nil {
-			// TODO: migrate error to entity
 			return errors.New("ffmpeg/libav: codec context is nil")
 		}
 		closer.Add(s.encCodecContext.Free)
@@ -323,6 +333,7 @@ func (c *LibAVFFmpegStreamer) prepareOutput(p *libAVParams, closer *astikit.Clos
 			// supplying custom config
 			if len(donut.Recipe.Audio.CodecContextOptions) > 0 {
 				for _, opt := range donut.Recipe.Audio.CodecContextOptions {
+					c.l.Infof("overriding av codec context %s", functionNameFor(opt))
 					opt(s.encCodecContext)
 				}
 			}
@@ -338,12 +349,12 @@ func (c *LibAVFFmpegStreamer) prepareOutput(p *libAVParams, closer *astikit.Clos
 			s.encCodecContext.SetTimeBase(s.decCodecContext.TimeBase())
 			s.encCodecContext.SetHeight(s.decCodecContext.Height())
 			s.encCodecContext.SetWidth(s.decCodecContext.Width())
-			// s.encCodecContext.SetFramerate(p.inputFormatContext.GuessFrameRate(s.inputStream, nil))
 			s.encCodecContext.SetFramerate(s.inputStream.AvgFrameRate())
 
 			// supplying custom config
-			if len(donut.Recipe.Audio.CodecContextOptions) > 0 {
-				for _, opt := range donut.Recipe.Audio.CodecContextOptions {
+			if len(donut.Recipe.Video.CodecContextOptions) > 0 {
+				for _, opt := range donut.Recipe.Video.CodecContextOptions {
+					c.l.Infof("overriding av codec context %s", functionNameFor(opt))
 					opt(s.encCodecContext)
 				}
 			}
@@ -356,49 +367,167 @@ func (c *LibAVFFmpegStreamer) prepareOutput(p *libAVParams, closer *astikit.Clos
 		if err := s.encCodecContext.Open(s.encCodec, nil); err != nil {
 			return fmt.Errorf("opening encoder context failed: %w", err)
 		}
+	}
+	return nil
+}
+
+func (c *LibAVFFmpegStreamer) prepareFilters(p *libAVParams, closer *astikit.Closer, donut *entities.DonutParameters) error {
+	for _, s := range p.streams {
+
+		isVideo := s.decCodecContext.MediaType() == astiav.MediaTypeVideo
+		isVideoBypass := donut.Recipe.Video.Action == entities.DonutBypass
+		if isVideo && isVideoBypass {
+			c.l.Infof("bypass video for %+v", s.inputStream)
+			continue
+		}
+
+		isAudio := s.decCodecContext.MediaType() == astiav.MediaTypeAudio
+		isAudioBypass := donut.Recipe.Audio.Action == entities.DonutBypass
+		if isAudio && isAudioBypass {
+			c.l.Infof("bypass audio for %+v", s.inputStream)
+			continue
+		}
+
+		var args astiav.FilterArgs
+		var buffersrc, buffersink *astiav.Filter
+		var content string
+		var err error
+
+		if s.filterGraph = astiav.AllocFilterGraph(); s.filterGraph == nil {
+			return errors.New("main: graph is nil")
+		}
+		closer.Add(s.filterGraph.Free)
+
+		outputs := astiav.AllocFilterInOut()
+		if outputs == nil {
+			return errors.New("main: outputs is nil")
+		}
+		closer.Add(outputs.Free)
+
+		inputs := astiav.AllocFilterInOut()
+		if inputs == nil {
+			return errors.New("main: inputs is nil")
+		}
+		closer.Add(inputs.Free)
+
+		if s.decCodecContext.MediaType() == astiav.MediaTypeAudio {
+			// TODO: what's the difference between args and content?
+			// why args are necessary?
+			args = astiav.FilterArgs{
+				"channel_layout": s.decCodecContext.ChannelLayout().String(),
+				"sample_fmt":     s.decCodecContext.SampleFormat().Name(),
+				"sample_rate":    strconv.Itoa(s.decCodecContext.SampleRate()),
+				"time_base":      s.decCodecContext.TimeBase().String(),
+			}
+			buffersrc = astiav.FindFilterByName("abuffer")
+			buffersink = astiav.FindFilterByName("abuffersink")
+			content = fmt.Sprintf(
+				"aresample=%s", // necessary for opus
+				strconv.Itoa(s.encCodecContext.SampleRate()),
+			)
+		}
+
+		if s.decCodecContext.MediaType() == astiav.MediaTypeVideo {
+			args = astiav.FilterArgs{
+				"pix_fmt":      strconv.Itoa(int(s.decCodecContext.PixelFormat())),
+				"pixel_aspect": s.decCodecContext.SampleAspectRatio().String(),
+				"time_base":    s.decCodecContext.TimeBase().String(),
+				"video_size":   strconv.Itoa(s.decCodecContext.Width()) + "x" + strconv.Itoa(s.decCodecContext.Height()),
+			}
+			buffersrc = astiav.FindFilterByName("buffer")
+			buffersink = astiav.FindFilterByName("buffersink")
+			content = fmt.Sprintf("format=pix_fmts=%s", s.encCodecContext.PixelFormat().Name())
+		}
+
+		if buffersrc == nil {
+			return errors.New("main: buffersrc is nil")
+		}
+		if buffersink == nil {
+			return errors.New("main: buffersink is nil")
+		}
+
+		if s.buffersrcContext, err = s.filterGraph.NewFilterContext(buffersrc, "in", args); err != nil {
+			return fmt.Errorf("main: creating buffersrc context failed: %w", err)
+		}
+		if s.buffersinkContext, err = s.filterGraph.NewFilterContext(buffersink, "out", nil); err != nil {
+			return fmt.Errorf("main: creating buffersink context failed: %w", err)
+		}
+
+		outputs.SetName("in")
+		outputs.SetFilterContext(s.buffersrcContext)
+		outputs.SetPadIdx(0)
+		outputs.SetNext(nil)
+
+		inputs.SetName("out")
+		inputs.SetFilterContext(s.buffersinkContext)
+		inputs.SetPadIdx(0)
+		inputs.SetNext(nil)
+
+		if err = s.filterGraph.Parse(content, inputs, outputs); err != nil {
+			return fmt.Errorf("main: parsing filter failed: %w", err)
+		}
+
+		if err = s.filterGraph.Configure(); err != nil {
+			return fmt.Errorf("main: configuring filter failed: %w", err)
+		}
+
+		s.filterFrame = astiav.AllocFrame()
+		closer.Add(s.filterFrame.Free)
 
 		s.encPkt = astiav.AllocPacket()
 		closer.Add(s.encPkt.Free)
+	}
+	return nil
+}
 
-		// // Update codec parameters
-		// if err = s.outputStream.CodecParameters().FromCodecContext(s.encCodecContext); err != nil {
-		// 	err = fmt.Errorf("main: updating codec parameters failed: %w", err)
-		// 	return
-		// }
+func (c *LibAVFFmpegStreamer) filterAndEncode(f *astiav.Frame, s *streamContext, donut *entities.DonutParameters) (err error) {
+	if err = s.buffersrcContext.BuffersrcAddFrame(f, astiav.NewBuffersrcFlags(astiav.BuffersrcFlagKeepRef)); err != nil {
+		return fmt.Errorf("adding frame failed: %w", err)
+	}
+	for {
+		s.filterFrame.Unref()
 
-		// // Update stream
-		// s.outputStream.SetTimeBase(s.encCodecContext.TimeBase())
+		if err = s.buffersinkContext.BuffersinkGetFrame(s.filterFrame, astiav.NewBuffersinkFlags()); err != nil {
+			if errors.Is(err, astiav.ErrEof) || errors.Is(err, astiav.ErrEagain) {
+				err = nil
+				break
+			}
+			return fmt.Errorf("getting frame failed: %w", err)
+		}
+		// TODO: should we avoid setting the picture type for audio?
+		s.filterFrame.SetPictureType(astiav.PictureTypeNone)
+
+		if err = c.encodeFrame(s.filterFrame, s, donut); err != nil {
+			err = fmt.Errorf("main: encoding and writing frame failed: %w", err)
+			return
+		}
 	}
 	return nil
 }
 
 func (c *LibAVFFmpegStreamer) encodeFrame(f *astiav.Frame, s *streamContext, donut *entities.DonutParameters) (err error) {
-	// Reset picture type
-	f.SetPictureType(astiav.PictureTypeNone)
-
 	s.encPkt.Unref()
 
-	// Send frame
+	// when converting from aac to opus using filters, the np samples are bigger than the frame size
+	// to fix the error "more samples than frame size"
+	f.SetNbSamples(s.encCodecContext.FrameSize())
+
 	if err = s.encCodecContext.SendFrame(f); err != nil {
-		err = fmt.Errorf("main: sending frame failed: %w", err)
-		return
+		return fmt.Errorf("sending frame failed: %w", err)
 	}
 
-	// Loop
 	for {
-		// Receive packet
 		if err = s.encCodecContext.ReceivePacket(s.encPkt); err != nil {
 			if errors.Is(err, astiav.ErrEof) || errors.Is(err, astiav.ErrEagain) {
 				err = nil
 				break
 			}
-			err = fmt.Errorf("main: receiving packet failed: %w", err)
-			return
+			return fmt.Errorf("receiving packet failed: %w", err)
 		}
 
-		// Update pkt
-		// 		s.encPkt.RescaleTs(s.encCodecContext.TimeBase(), s.outputStream.TimeBase())
-		s.encPkt.RescaleTs(s.encCodecContext.TimeBase(), s.decCodecContext.TimeBase())
+		// TODO: check if we need to swap
+		// pkt.RescaleTs(s.inputStream.TimeBase(), s.decCodecContext.TimeBase())
+		s.encPkt.RescaleTs(s.inputStream.TimeBase(), s.encCodecContext.TimeBase())
 
 		isVideo := s.decCodecContext.MediaType() == astiav.MediaTypeVideo
 		if isVideo {
@@ -425,35 +554,33 @@ func (c *LibAVFFmpegStreamer) encodeFrame(f *astiav.Frame, s *streamContext, don
 				}
 			}
 		}
-
 	}
 
 	return nil
 }
 
 func (c *LibAVFFmpegStreamer) defineInputFormat(streamFormat string) (*astiav.InputFormat, error) {
+	var inputFormat *astiav.InputFormat
 	if streamFormat != "" {
-		inputFormat := astiav.FindInputFormat(streamFormat)
+		inputFormat = astiav.FindInputFormat(streamFormat)
 		if inputFormat == nil {
 			return nil, fmt.Errorf("ffmpeg/libav: could not find %s input format", streamFormat)
 		}
 	}
-	return nil, nil
+	return inputFormat, nil
 }
 
 func (c *LibAVFFmpegStreamer) defineInputOptions(p *entities.DonutParameters, closer *astikit.Closer) *astiav.Dictionary {
-	if strings.Contains(strings.ToLower(p.StreamURL), "srt:") {
-		d := &astiav.Dictionary{}
-		closer.Add(d.Free)
+	var dic *astiav.Dictionary
+	if len(p.Recipe.Input.Options) > 0 {
+		dic = &astiav.Dictionary{}
+		closer.Add(dic.Free)
 
-		// ref https://ffmpeg.org/ffmpeg-all.html#srt
-		// flags (the zeroed 3rd value) https://github.com/FFmpeg/FFmpeg/blob/n5.0/libavutil/dict.h#L67C9-L77
-		d.Set("srt_streamid", p.StreamID, 0)
-		d.Set("smoother", "live", 0)
-		d.Set("transtype", "live", 0)
-		return d
+		for k, v := range p.Recipe.Input.Options {
+			dic.Set(k.String(), v, 0)
+		}
 	}
-	return nil
+	return dic
 }
 
 func (c *LibAVFFmpegStreamer) defineAudioDuration(s *streamContext, pkt *astiav.Packet) time.Duration {
@@ -477,15 +604,11 @@ func (c *LibAVFFmpegStreamer) defineAudioDuration(s *streamContext, pkt *astiav.
 		c.lastAudioFrameDTS = float64(pkt.Dts())
 		sampleRate := float64(s.inputStream.CodecParameters().SampleRate())
 		audioDuration = time.Duration((c.currentAudioFrameSize / sampleRate) * float64(time.Second))
-		c.l.Infow("audio duration",
-			"framesize", s.inputStream.CodecParameters().FrameSize(),
-			"audioDuration", audioDuration,
-		)
 	}
 	return audioDuration
 }
 
-func (c *LibAVFFmpegStreamer) defineVideoDuration(s *streamContext, pkt *astiav.Packet) time.Duration {
+func (c *LibAVFFmpegStreamer) defineVideoDuration(s *streamContext, _ *astiav.Packet) time.Duration {
 	videoDuration := time.Duration(0)
 	if s.inputStream.CodecParameters().MediaType() == astiav.MediaTypeVideo {
 		// Video
@@ -497,10 +620,6 @@ func (c *LibAVFFmpegStreamer) defineVideoDuration(s *streamContext, pkt *astiav.
 
 		// we're assuming fixed video frame rate
 		videoDuration = time.Duration((float64(1) / float64(s.inputStream.AvgFrameRate().Num())) * float64(time.Second))
-		c.l.Infow("video duration",
-			"framesize", s.inputStream.CodecParameters().FrameSize(),
-			"videoDuration", videoDuration,
-		)
 	}
 	return videoDuration
 }

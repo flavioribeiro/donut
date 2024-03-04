@@ -215,6 +215,12 @@ func (m *Mapper) FromStreamCodecToLibAVCodecID(codec entities.Codec) (astiav.Cod
 		return astiav.CodecIDHevc, nil
 	} else if codec == entities.Opus {
 		return astiav.CodecIDOpus, nil
+	} else if codec == entities.VP8 {
+		return astiav.CodecIDVp8, nil
+	} else if codec == entities.VP9 {
+		return astiav.CodecIDVp9, nil
+	} else if codec == entities.AAC {
+		return astiav.CodecIDAac, nil
 	}
 
 	// TODO: port error to entities
