@@ -39,7 +39,7 @@ func NewSignalingHandler(
 }
 
 func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
-	params, err := h.createAndValidateParams(w, r)
+	params, err := h.createAndValidateParams(r)
 	if err != nil {
 		return err
 	}
@@ -70,39 +70,21 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 		return err
 	}
 
-	// TODO: introduce a mode to deal with transcoding recipes
-	// selects proper media that client and server has adverted.
-	// donutEngine preferable vp8, ogg???
-	// From: [] To: [] or Transcode:[], Bypass: []
-	// libav_streamer.go, libav_streamer_format.go, libav_streamer_codec.go...
-	// reads from Server (input) and generates h264 raw, and ogg and send it with timing attributes
-	compatibleStreams, ok := donutEngine.CompatibleStreamsFor(serverStreamInfo, clientStreamInfo)
-	if !ok {
-		h.l.Info("we must transcode")
-	}
-
-	if len(compatibleStreams) == 0 {
+	donutRecipe := donutEngine.RecipeFor(&params, serverStreamInfo, clientStreamInfo)
+	if donutRecipe == nil {
 		return entities.ErrMissingCompatibleStreams
 	}
 
 	var videoTrack *webrtc.TrackLocalStaticSample
-	// var audioTrack *webrtc.TrackLocalStaticSample
+	videoTrack, err = h.webRTCController.CreateTrack(peer, donutRecipe.Video.Codec, string(entities.VideoType), params.SRTStreamID)
+	if err != nil {
+		return err
+	}
 
-	for _, st := range compatibleStreams {
-		// TODO: make the mapping less dependent on type
-		if st.Type == entities.VideoType {
-			videoTrack, err = h.webRTCController.CreateTrack(
-				peer,
-				st,
-				string(st.Type), // "video" or "audio"
-				params.SRTStreamID,
-			)
-			if err != nil {
-				return err
-			}
-
-		}
-		// if st.Type == entities.AudioType {
+	var audioTrack *webrtc.TrackLocalStaticSample
+	audioTrack, err = h.webRTCController.CreateTrack(peer, donutRecipe.Audio.Codec, string(entities.AudioType), params.SRTStreamID)
+	if err != nil {
+		return err
 	}
 
 	metadataSender, err := h.webRTCController.CreateDataChannel(peer, entities.MetadataChannelID)
@@ -123,11 +105,9 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 		Cancel: cancel,
 		Ctx:    ctx,
 
-		// TODO: add an UI element for the sub-type (format) when input is srt://
-		// We're assuming that SRT is carrying mpegts.
-		StreamFormat: "mpegts",
-		StreamID:     params.SRTStreamID,
-		StreamURL:    fmt.Sprintf("srt://%s:%d", params.SRTHost, params.SRTPort),
+		Recipe: *donutRecipe,
+
+		StreamURL: fmt.Sprintf("srt://%s:%d", params.SRTHost, params.SRTPort),
 
 		OnClose: func() {
 			cancel()
@@ -146,7 +126,8 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 		},
 		OnAudioFrame: func(data []byte, c entities.MediaFrameContext) error {
 			// TODO: implement
-			return nil
+			// audioTrack
+			return h.webRTCController.SendVideoSample(audioTrack, data, c)
 		},
 	})
 
@@ -161,7 +142,7 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 	return nil
 }
 
-func (h *SignalingHandler) createAndValidateParams(w http.ResponseWriter, r *http.Request) (entities.RequestParams, error) {
+func (h *SignalingHandler) createAndValidateParams(r *http.Request) (entities.RequestParams, error) {
 	if r.Method != http.MethodPost {
 		return entities.RequestParams{}, entities.ErrHTTPPostOnly
 	}

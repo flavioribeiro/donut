@@ -52,6 +52,10 @@ const setupWebRTC = (setRemoteSDPfn) => {
   // with auto play.
   pc.ontrack = function (event) {
     log("ontrack : " + event.track.kind + " label " + event.track.label);
+    // it only creates a video tag element
+    if (event.track.kind !== "video") {
+      return
+    }
 
     const el = document.createElement(event.track.kind);
     el.srcObject = event.streams[0];

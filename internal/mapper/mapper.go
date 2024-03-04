@@ -1,6 +1,7 @@
 package mapper
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/asticode/go-astiav"
@@ -19,15 +20,18 @@ func NewMapper(l *zap.SugaredLogger) *Mapper {
 	return &Mapper{l: l}
 }
 
-func (m *Mapper) FromTrackToRTPCodecCapability(track entities.Stream) webrtc.RTPCodecCapability {
+func (m *Mapper) FromTrackToRTPCodecCapability(codec entities.Codec) webrtc.RTPCodecCapability {
+	// TODO: enrich codec capability, check if it's necessary
 	response := webrtc.RTPCodecCapability{}
 
-	if track.Codec == entities.H264 {
+	if codec == entities.H264 {
 		response.MimeType = webrtc.MimeTypeH264
-	} else if track.Codec == entities.H265 {
+	} else if codec == entities.H265 {
 		response.MimeType = webrtc.MimeTypeH265
+	} else if codec == entities.Opus {
+		response.MimeType = webrtc.MimeTypeOpus
 	} else {
-		m.l.Info("[[[[TODO: mapper not implemented]]]] for ", track)
+		m.l.Info("[[[[TODO: mapper not implemented]]]] for ", codec)
 	}
 
 	return response
@@ -202,4 +206,23 @@ func (m *Mapper) FromLibAVStreamToEntityStream(libavStream *astiav.Stream) entit
 	st.Index = uint16(libavStream.Index())
 
 	return st
+}
+
+func (m *Mapper) FromStreamCodecToLibAVCodecID(codec entities.Codec) (astiav.CodecID, error) {
+	if codec == entities.H264 {
+		return astiav.CodecIDH264, nil
+	} else if codec == entities.H265 {
+		return astiav.CodecIDHevc, nil
+	} else if codec == entities.Opus {
+		return astiav.CodecIDOpus, nil
+	} else if codec == entities.VP8 {
+		return astiav.CodecIDVp8, nil
+	} else if codec == entities.VP9 {
+		return astiav.CodecIDVp9, nil
+	} else if codec == entities.AAC {
+		return astiav.CodecIDAac, nil
+	}
+
+	// TODO: port error to entities
+	return astiav.CodecIDH264, fmt.Errorf("cannot find a libav codec id for donut codec id %+v", codec)
 }

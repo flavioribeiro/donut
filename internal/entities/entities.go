@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/asticode/go-astiav"
 	"github.com/pion/webrtc/v3"
 )
 
@@ -127,12 +128,9 @@ type DonutParameters struct {
 	Cancel context.CancelFunc
 	Ctx    context.Context
 
-	StreamID     string // ie: live001, channel01
-	StreamFormat string // ie: flv, mpegts
-	StreamURL    string // ie: srt://host:9080, rtmp://host:4991
+	StreamURL string // ie: srt://host:9080, rtmp://host:4991
 
-	TranscodeVideoCodec Codec // ie: vp8
-	TranscodeAudioCodec Codec // ie: opus
+	Recipe DonutRecipe
 
 	OnClose      func()
 	OnError      func(err error)
@@ -140,6 +138,92 @@ type DonutParameters struct {
 	OnVideoFrame func(data []byte, c MediaFrameContext) error
 	OnAudioFrame func(data []byte, c MediaFrameContext) error
 }
+
+type DonutMediaTaskAction string
+
+var DonutTranscode DonutMediaTaskAction = "transcode"
+var DonutBypass DonutMediaTaskAction = "bypass"
+
+// TODO: split entities per domain or files avoiding name collision.
+
+// DonutMediaTask is a transformation template to apply over a media.
+type DonutMediaTask struct {
+	// Action the action that needs to be performed
+	Action DonutMediaTaskAction
+	// Codec is the main codec, it might be used depending on the action.
+	Codec Codec
+	// CodecContextOptions is a list of options to be applied on codec context.
+	// If no value is provided ffmpeg will use defaults.
+	// For instance, if one does not provide bit rate, it'll fallback to 64000 bps (opus)
+	CodecContextOptions []LibAVOptionsCodecContext
+}
+
+type DonutInputOptionKey string
+
+func (d DonutInputOptionKey) String() string {
+	return string(d)
+}
+
+var DonutSRTStreamID DonutInputOptionKey = "srt_streamid"
+var DonutSRTsmoother DonutInputOptionKey = "smoother"
+var DonutSRTTranstype DonutInputOptionKey = "transtype"
+
+type DonutInputFormat string
+
+func (d DonutInputFormat) String() string {
+	return string(d)
+}
+
+var DonutMpegTSFormat DonutInputFormat = "mpegts"
+var DonutFLVFormat DonutInputFormat = "flv"
+
+type DonutInput struct {
+	Format  DonutInputFormat
+	Options map[DonutInputOptionKey]string
+}
+
+type DonutRecipe struct {
+	Input DonutInput
+	Video DonutMediaTask
+	Audio DonutMediaTask
+}
+
+type LibAVOptionsCodecContext func(c *astiav.CodecContext)
+
+func SetSampleRate(sampleRate int) LibAVOptionsCodecContext {
+	return func(c *astiav.CodecContext) {
+		c.SetSampleRate(sampleRate)
+	}
+}
+
+func SetTimeBase(num, den int) LibAVOptionsCodecContext {
+	return func(c *astiav.CodecContext) {
+		c.SetTimeBase(astiav.NewRational(num, den))
+	}
+}
+
+// SetSampleFormat sets sample format,
+// CAUTION it only contains partial list of fmt
+// TODO: move it to mappers
+func SetSampleFormat(fmt string) LibAVOptionsCodecContext {
+	var sf astiav.SampleFormat
+	if fmt == "fltp" {
+		sf = astiav.SampleFormatFltp
+	} else if fmt == "flt" {
+		sf = astiav.SampleFormatFlt
+	} else {
+		// DANGER: assuming a default value
+		sf = astiav.SampleFormatS16
+	}
+	return func(c *astiav.CodecContext) {
+		c.SetSampleFormat(sf)
+	}
+}
+
+// TODO: implement proper matching
+// DonutTransformRecipe
+//  AudioTask: {Action: Transcode, From: AAC, To: Opus}
+//  VideoTask: {Action: Bypass, From: H264, To: H264}
 
 type Config struct {
 	HTTPPort       int32  `required:"true" default:"8080"`
