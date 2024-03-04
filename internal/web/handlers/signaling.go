@@ -39,7 +39,7 @@ func NewSignalingHandler(
 }
 
 func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
-	params, err := h.createAndValidateParams(w, r)
+	params, err := h.createAndValidateParams(r)
 	if err != nil {
 		return err
 	}
@@ -81,7 +81,11 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 		return err
 	}
 
-	// var audioTrack *webrtc.TrackLocalStaticSample
+	var audioTrack *webrtc.TrackLocalStaticSample
+	audioTrack, err = h.webRTCController.CreateTrack(peer, donutRecipe.Audio.Codec, string(entities.AudioType), params.SRTStreamID)
+	if err != nil {
+		return err
+	}
 
 	metadataSender, err := h.webRTCController.CreateDataChannel(peer, entities.MetadataChannelID)
 	if err != nil {
@@ -122,7 +126,8 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 		},
 		OnAudioFrame: func(data []byte, c entities.MediaFrameContext) error {
 			// TODO: implement
-			return nil
+			// audioTrack
+			return h.webRTCController.SendVideoSample(audioTrack, data, c)
 		},
 	})
 
@@ -137,7 +142,7 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 	return nil
 }
 
-func (h *SignalingHandler) createAndValidateParams(w http.ResponseWriter, r *http.Request) (entities.RequestParams, error) {
+func (h *SignalingHandler) createAndValidateParams(r *http.Request) (entities.RequestParams, error) {
 	if r.Method != http.MethodPost {
 		return entities.RequestParams{}, entities.ErrHTTPPostOnly
 	}
