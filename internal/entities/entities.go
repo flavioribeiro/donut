@@ -3,14 +3,23 @@ package entities
 import (
 	"context"
 	"fmt"
+	"time"
 
-	astisrt "github.com/asticode/go-astisrt/pkg"
+	"github.com/asticode/go-astiav"
 	"github.com/pion/webrtc/v3"
 )
 
 const (
 	MetadataChannelID string = "metadata"
 )
+
+type WebRTCSetupResponse struct {
+	Connection *webrtc.PeerConnection
+	Video      *webrtc.TrackLocalStaticSample
+	Audio      *webrtc.TrackLocalStaticSample
+	Data       *webrtc.DataChannel
+	LocalSDP   *webrtc.SessionDescription
+}
 
 type RequestParams struct {
 	SRTHost     string
@@ -57,14 +66,64 @@ type Message struct {
 	Message string
 }
 
-type TrackType string
+type Codec string
+type MediaType string
 
 const (
-	H264 TrackType = "h264"
+	UnknownCodec Codec = "unknownCodec"
+	H264         Codec = "h264"
+	H265         Codec = "h265"
+	VP8          Codec = "vp8"
+	VP9          Codec = "vp9"
+	AV1          Codec = "av1"
+	AAC          Codec = "aac"
+	Opus         Codec = "opus"
 )
 
-type Track struct {
-	Type TrackType
+const (
+	UnknownType MediaType = "unknownMediaType"
+	VideoType   MediaType = "video"
+	AudioType   MediaType = "audio"
+)
+
+type Stream struct {
+	Codec Codec
+	Type  MediaType
+	Id    uint16
+	Index uint16
+}
+
+type MediaFrameContext struct {
+	// DTS decoding timestamp
+	DTS int
+	// PTS presentation timestamp
+	PTS int
+	// Media frame duration
+	Duration time.Duration
+}
+
+type StreamInfo struct {
+	Streams []Stream
+}
+
+func (s *StreamInfo) VideoStreams() []Stream {
+	var result []Stream
+	for _, s := range s.Streams {
+		if s.Type == VideoType {
+			result = append(result, s)
+		}
+	}
+	return result
+}
+
+func (s *StreamInfo) AudioStreams() []Stream {
+	var result []Stream
+	for _, s := range s.Streams {
+		if s.Type == AudioType {
+			result = append(result, s)
+		}
+	}
+	return result
 }
 
 type Cue struct {
@@ -73,14 +132,106 @@ type Cue struct {
 	Text      string
 }
 
-type StreamParameters struct {
-	WebRTCConn    *webrtc.PeerConnection
-	Cancel        context.CancelFunc
-	Ctx           context.Context
-	SRTConnection *astisrt.Connection
-	VideoTrack    *webrtc.TrackLocalStaticSample
-	MetadataTrack *webrtc.DataChannel
+type DonutParameters struct {
+	Cancel context.CancelFunc
+	Ctx    context.Context
+
+	StreamURL string // ie: srt://host:9080, rtmp://host:4991
+
+	Recipe DonutRecipe
+
+	OnClose      func()
+	OnError      func(err error)
+	OnStream     func(st *Stream) error
+	OnVideoFrame func(data []byte, c MediaFrameContext) error
+	OnAudioFrame func(data []byte, c MediaFrameContext) error
 }
+
+type DonutMediaTaskAction string
+
+var DonutTranscode DonutMediaTaskAction = "transcode"
+var DonutBypass DonutMediaTaskAction = "bypass"
+
+// TODO: split entities per domain or files avoiding name collision.
+
+// DonutMediaTask is a transformation template to apply over a media.
+type DonutMediaTask struct {
+	// Action the action that needs to be performed
+	Action DonutMediaTaskAction
+	// Codec is the main codec, it might be used depending on the action.
+	Codec Codec
+	// CodecContextOptions is a list of options to be applied on codec context.
+	// If no value is provided ffmpeg will use defaults.
+	// For instance, if one does not provide bit rate, it'll fallback to 64000 bps (opus)
+	CodecContextOptions []LibAVOptionsCodecContext
+}
+
+type DonutInputOptionKey string
+
+func (d DonutInputOptionKey) String() string {
+	return string(d)
+}
+
+var DonutSRTStreamID DonutInputOptionKey = "srt_streamid"
+var DonutSRTsmoother DonutInputOptionKey = "smoother"
+var DonutSRTTranstype DonutInputOptionKey = "transtype"
+
+type DonutInputFormat string
+
+func (d DonutInputFormat) String() string {
+	return string(d)
+}
+
+var DonutMpegTSFormat DonutInputFormat = "mpegts"
+var DonutFLVFormat DonutInputFormat = "flv"
+
+type DonutInput struct {
+	Format  DonutInputFormat
+	Options map[DonutInputOptionKey]string
+}
+
+type DonutRecipe struct {
+	Input DonutInput
+	Video DonutMediaTask
+	Audio DonutMediaTask
+}
+
+type LibAVOptionsCodecContext func(c *astiav.CodecContext)
+
+func SetSampleRate(sampleRate int) LibAVOptionsCodecContext {
+	return func(c *astiav.CodecContext) {
+		c.SetSampleRate(sampleRate)
+	}
+}
+
+func SetTimeBase(num, den int) LibAVOptionsCodecContext {
+	return func(c *astiav.CodecContext) {
+		c.SetTimeBase(astiav.NewRational(num, den))
+	}
+}
+
+// SetSampleFormat sets sample format,
+// CAUTION it only contains partial list of fmt
+// TODO: move it to mappers
+func SetSampleFormat(fmt string) LibAVOptionsCodecContext {
+	var sf astiav.SampleFormat
+	if fmt == "fltp" {
+		sf = astiav.SampleFormatFltp
+	} else if fmt == "flt" {
+		sf = astiav.SampleFormatFlt
+	} else {
+		// DANGER: assuming a default value
+		sf = astiav.SampleFormatS16
+	}
+	return func(c *astiav.CodecContext) {
+		c.SetSampleFormat(sf)
+	}
+}
+
+// TODO: implement proper matching
+// DonutTransformRecipe
+//  AudioTask: {Action: Transcode, From: AAC, To: Opus}
+//  VideoTask: {Action: Bypass, From: H264, To: H264}
 
 type Config struct {
 	HTTPPort       int32  `required:"true" default:"8080"`
@@ -92,8 +243,13 @@ type Config struct {
 	ICEReadBufferSize  int      `required:"true" default:"8"`
 	ICEExternalIPsDNAT []string `required:"true" default:"127.0.0.1"`
 	EnableICEMux       bool     `require:"true" default:"false"`
-	StunServers        []string `required:"true" default:"stun:stun.l.google.com:19302"`
+	StunServers        []string `required:"true" default:"stun:stun.l.google.com:19302,stun:stun1.l.google.com:19302,stun:stun2.l.google.com:19302,stun:stun4.l.google.com:19302"`
 
 	SRTConnectionLatencyMS int32 `required:"true" default:"300"`
-	SRTReadBufferSizeBytes int   `required:"true" default:"1316"`
+	// MPEG-TS consists of single units of 188 bytes. Multiplying 188*7 we get 1316,
+	// which is the maximum product of 188 that is less than MTU 1500 (188*8=1504)
+	// ref https://github.com/Haivision/srt/blob/master/docs/features/live-streaming.md#transmitting-mpeg-ts-binary-protocol-over-srt
+	SRTReadBufferSizeBytes int `required:"true" default:"1316"`
+
+	ProbingSize int `required:"true" default:"120"`
 }

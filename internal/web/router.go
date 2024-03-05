@@ -22,7 +22,7 @@ func NewServeMux(
 	mux.Handle("/", index)
 
 	fs := http.FileServer(http.Dir("./static"))
-	mux.Handle("/demo/", http.StripPrefix("/demo/", fs))
+	mux.Handle("/demo/", setHTTPNoCaching(http.StripPrefix("/demo/", fs)))
 
 	mux.Handle("/doSignaling", setCors(errorHandler(l, signaling)))
 
@@ -52,5 +52,12 @@ func errorHandler(l *zap.SugaredLogger, next ErrorHTTPHandler) http.Handler {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+	})
+}
+
+func setHTTPNoCaching(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-store, no-cache, max-age=0, must-revalidate, proxy-revalidate")
+		next.ServeHTTP(w, r)
 	})
 }
