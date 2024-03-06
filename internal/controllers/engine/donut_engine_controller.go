@@ -11,9 +11,9 @@ import (
 )
 
 type DonutEngine interface {
-	ServerIngredients(req *entities.RequestParams) (*entities.StreamInfo, error)
-	ClientIngredients(req *entities.RequestParams) (*entities.StreamInfo, error)
-	RecipeFor(req *entities.RequestParams, server, client *entities.StreamInfo) *entities.DonutRecipe
+	ServerIngredients() (*entities.StreamInfo, error)
+	ClientIngredients() (*entities.StreamInfo, error)
+	RecipeFor(server, client *entities.StreamInfo) *entities.DonutRecipe
 	Serve(p *entities.DonutParameters)
 }
 
@@ -47,6 +47,7 @@ func (c *DonutEngineController) EngineFor(req *entities.RequestParams) (DonutEng
 		prober:   prober,
 		streamer: streamer,
 		mapper:   c.p.Mapper,
+		req:      req,
 	}, nil
 }
 
@@ -74,21 +75,22 @@ type donutEngine struct {
 	prober   probers.DonutProber
 	streamer streamers.DonutStreamer
 	mapper   *mapper.Mapper
+	req      *entities.RequestParams
 }
 
-func (d *donutEngine) ServerIngredients(req *entities.RequestParams) (*entities.StreamInfo, error) {
-	return d.prober.StreamInfo(req)
+func (d *donutEngine) ServerIngredients() (*entities.StreamInfo, error) {
+	return d.prober.StreamInfo(d.req)
 }
 
-func (d *donutEngine) ClientIngredients(req *entities.RequestParams) (*entities.StreamInfo, error) {
-	return d.mapper.FromWebRTCSessionDescriptionToStreamInfo(req.Offer)
+func (d *donutEngine) ClientIngredients() (*entities.StreamInfo, error) {
+	return d.mapper.FromWebRTCSessionDescriptionToStreamInfo(d.req.Offer)
 }
 
 func (d *donutEngine) Serve(p *entities.DonutParameters) {
 	d.streamer.Stream(p)
 }
 
-func (d *donutEngine) RecipeFor(req *entities.RequestParams, server, client *entities.StreamInfo) *entities.DonutRecipe {
+func (d *donutEngine) RecipeFor(server, client *entities.StreamInfo) *entities.DonutRecipe {
 	// TODO: implement proper matching
 	//
 	// suggestions:
@@ -102,7 +104,7 @@ func (d *donutEngine) RecipeFor(req *entities.RequestParams, server, client *ent
 		Input: entities.DonutInput{
 			Format: "mpegts", // it'll change based on input, i.e. rmtp flv
 			Options: map[entities.DonutInputOptionKey]string{
-				entities.DonutSRTStreamID:  req.SRTStreamID,
+				entities.DonutSRTStreamID:  d.req.SRTStreamID,
 				entities.DonutSRTTranstype: "live",
 				entities.DonutSRTsmoother:  "live",
 			},

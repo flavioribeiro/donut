@@ -49,17 +49,17 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 	}
 
 	// server side media info
-	serverStreamInfo, err := donutEngine.ServerIngredients(&params)
+	serverStreamInfo, err := donutEngine.ServerIngredients()
 	if err != nil {
 		return err
 	}
 	// client side media support
-	clientStreamInfo, err := donutEngine.ClientIngredients(&params)
+	clientStreamInfo, err := donutEngine.ClientIngredients()
 	if err != nil {
 		return err
 	}
 
-	donutRecipe := donutEngine.RecipeFor(&params, serverStreamInfo, clientStreamInfo)
+	donutRecipe := donutEngine.RecipeFor(serverStreamInfo, clientStreamInfo)
 	if donutRecipe == nil {
 		return entities.ErrMissingCompatibleStreams
 	}
