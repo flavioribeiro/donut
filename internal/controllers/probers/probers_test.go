@@ -1,6 +1,7 @@
 package probers_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/flavioribeiro/donut/internal/controllers/probers"
@@ -47,9 +48,19 @@ func TestSrtMpegTs_StreamInfo_264(t *testing.T) {
 		SRTStreamID: "test_id",
 	}
 
+	input := entities.DonutAppetizer{
+		URL:    fmt.Sprintf("srt://%s:%d", ffmpeg.Output().Host, uint16(ffmpeg.Output().Port)),
+		Format: "mpegts", // it'll change based on input, i.e. rmtp flv
+		Options: map[entities.DonutInputOptionKey]string{
+			entities.DonutSRTStreamID:  "test_id",
+			entities.DonutSRTTranstype: "live",
+			entities.DonutSRTsmoother:  "live",
+		},
+	}
+
 	prober := selectProberFor(t, req)
 
-	streamInfo, err := prober.StreamInfo(req)
+	streamInfo, err := prober.StreamInfo(input)
 
 	assert.Nil(t, err)
 	assert.NotNil(t, streamInfo)
@@ -69,9 +80,19 @@ func TestSrtMpegTs_StreamInfo_265(t *testing.T) {
 		SRTStreamID: "test_id",
 	}
 
+	input := entities.DonutAppetizer{
+		URL:    fmt.Sprintf("srt://%s:%d", ffmpeg.Output().Host, uint16(ffmpeg.Output().Port)),
+		Format: "mpegts", // it'll change based on input, i.e. rmtp flv
+		Options: map[entities.DonutInputOptionKey]string{
+			entities.DonutSRTStreamID:  "test_id",
+			entities.DonutSRTTranstype: "live",
+			entities.DonutSRTsmoother:  "live",
+		},
+	}
+
 	prober := selectProberFor(t, req)
 
-	streamInfo, err := prober.StreamInfo(req)
+	streamInfo, err := prober.StreamInfo(input)
 
 	assert.Nil(t, err)
 	assert.NotNil(t, streamInfo)

@@ -43,7 +43,7 @@ func (c *LibAVFFmpeg) Match(req *entities.RequestParams) bool {
 }
 
 // StreamInfo connects to the SRT stream to discovery media properties.
-func (c *LibAVFFmpeg) StreamInfo(req *entities.RequestParams) (*entities.StreamInfo, error) {
+func (c *LibAVFFmpeg) StreamInfo(req entities.DonutAppetizer) (*entities.StreamInfo, error) {
 	closer := astikit.NewCloser()
 	defer closer.Close()
 
@@ -53,26 +53,13 @@ func (c *LibAVFFmpeg) StreamInfo(req *entities.RequestParams) (*entities.StreamI
 	}
 	closer.Add(inputFormatContext.Free)
 
-	// TODO: implement proper handler per req
-	userProvidedInputFormat := "mpegts"
-	// We're assuming that SRT is carrying mpegts.
-	//
-	// ffmpeg -hide_banner -protocols # shows all protocols (SRT/RTMP)
-	// ffmpeg -hide_banner -formats # shows all formats (mpegts/webm/mov)
-	inputFormat := astiav.FindInputFormat(userProvidedInputFormat)
-	if inputFormat == nil {
-		return nil, fmt.Errorf("mpegts: %w", entities.ErrFFmpegLibAVNotFound)
+	inputFormat, err := c.defineInputFormat(req.Format.String())
+	if err != nil {
+		return nil, err
 	}
+	inputOptions := c.defineInputOptions(req.Options, closer)
 
-	// ref https://ffmpeg.org/ffmpeg-all.html#srt
-	d := &astiav.Dictionary{}
-	// flags (the zeroed 3rd value) https://github.com/FFmpeg/FFmpeg/blob/n5.0/libavutil/dict.h#L67C9-L77
-	d.Set("srt_streamid", req.SRTStreamID, 0)
-	d.Set("smoother", "live", 0)
-	d.Set("transtype", "live", 0)
-
-	inputURL := fmt.Sprintf("srt://%s:%d", req.SRTHost, req.SRTPort)
-	if err := inputFormatContext.OpenInput(inputURL, inputFormat, d); err != nil {
+	if err := inputFormatContext.OpenInput(req.URL, inputFormat, inputOptions); err != nil {
 		return nil, fmt.Errorf("error while inputFormatContext.OpenInput: %w", err)
 	}
 	closer.Add(inputFormatContext.CloseInput)
@@ -93,4 +80,29 @@ func (c *LibAVFFmpeg) StreamInfo(req *entities.RequestParams) (*entities.StreamI
 	si := entities.StreamInfo{Streams: streams}
 
 	return &si, nil
+}
+
+// TODO: merge common behavior (streamer / prober)
+func (c *LibAVFFmpeg) defineInputFormat(streamFormat string) (*astiav.InputFormat, error) {
+	var inputFormat *astiav.InputFormat
+	if streamFormat != "" {
+		inputFormat = astiav.FindInputFormat(streamFormat)
+		if inputFormat == nil {
+			return nil, fmt.Errorf("ffmpeg/libav: could not find %s input format", streamFormat)
+		}
+	}
+	return inputFormat, nil
+}
+
+func (c *LibAVFFmpeg) defineInputOptions(opts map[entities.DonutInputOptionKey]string, closer *astikit.Closer) *astiav.Dictionary {
+	var dic *astiav.Dictionary
+	if len(opts) > 0 {
+		dic = &astiav.Dictionary{}
+		closer.Add(dic.Free)
+
+		for k, v := range opts {
+			dic.Set(k.String(), v, 0)
+		}
+	}
+	return dic
 }

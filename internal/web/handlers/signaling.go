@@ -3,7 +3,6 @@ package handlers
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/flavioribeiro/donut/internal/controllers"
@@ -77,8 +76,6 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 		Ctx:    ctx,
 
 		Recipe: *donutRecipe,
-
-		StreamURL: fmt.Sprintf("srt://%s:%d", params.SRTHost, params.SRTPort),
 
 		OnClose: func() {
 			cancel()

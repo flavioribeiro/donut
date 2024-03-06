@@ -209,7 +209,7 @@ func (c *LibAVFFmpegStreamer) prepareInput(p *libAVParams, closer *astikit.Close
 		return err
 	}
 	inputOptions := c.defineInputOptions(donut, closer)
-	if err := p.inputFormatContext.OpenInput(donut.StreamURL, inputFormat, inputOptions); err != nil {
+	if err := p.inputFormatContext.OpenInput(donut.Recipe.Input.URL, inputFormat, inputOptions); err != nil {
 		return fmt.Errorf("ffmpeg/libav: opening input failed %w", err)
 	}
 	closer.Add(p.inputFormatContext.CloseInput)

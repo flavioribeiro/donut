@@ -136,8 +136,6 @@ type DonutParameters struct {
 	Cancel context.CancelFunc
 	Ctx    context.Context
 
-	StreamURL string // ie: srt://host:9080, rtmp://host:4991
-
 	Recipe DonutRecipe
 
 	OnClose      func()
@@ -185,13 +183,14 @@ func (d DonutInputFormat) String() string {
 var DonutMpegTSFormat DonutInputFormat = "mpegts"
 var DonutFLVFormat DonutInputFormat = "flv"
 
-type DonutInput struct {
+type DonutAppetizer struct {
+	URL     string
 	Format  DonutInputFormat
 	Options map[DonutInputOptionKey]string
 }
 
 type DonutRecipe struct {
-	Input DonutInput
+	Input DonutAppetizer
 	Video DonutMediaTask
 	Audio DonutMediaTask
 }

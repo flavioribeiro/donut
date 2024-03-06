@@ -11,6 +11,7 @@ import (
 )
 
 type DonutEngine interface {
+	Appetizer() entities.DonutAppetizer
 	ServerIngredients() (*entities.StreamInfo, error)
 	ClientIngredients() (*entities.StreamInfo, error)
 	RecipeFor(server, client *entities.StreamInfo) *entities.DonutRecipe
@@ -79,7 +80,7 @@ type donutEngine struct {
 }
 
 func (d *donutEngine) ServerIngredients() (*entities.StreamInfo, error) {
-	return d.prober.StreamInfo(d.req)
+	return d.prober.StreamInfo(d.Appetizer())
 }
 
 func (d *donutEngine) ClientIngredients() (*entities.StreamInfo, error) {
@@ -101,14 +102,7 @@ func (d *donutEngine) RecipeFor(server, client *entities.StreamInfo) *entities.D
 	//     if union(preferable, client.medias)
 	//         transcode, preferable
 	r := &entities.DonutRecipe{
-		Input: entities.DonutInput{
-			Format: "mpegts", // it'll change based on input, i.e. rmtp flv
-			Options: map[entities.DonutInputOptionKey]string{
-				entities.DonutSRTStreamID:  d.req.SRTStreamID,
-				entities.DonutSRTTranstype: "live",
-				entities.DonutSRTsmoother:  "live",
-			},
-		},
+		Input: d.Appetizer(),
 		Video: entities.DonutMediaTask{
 			Action: entities.DonutBypass,
 			Codec:  entities.H264,
@@ -129,4 +123,17 @@ func (d *donutEngine) RecipeFor(server, client *entities.StreamInfo) *entities.D
 	}
 
 	return r
+}
+
+func (d *donutEngine) Appetizer() entities.DonutAppetizer {
+	// TODO: implement input based on param
+	return entities.DonutAppetizer{
+		URL:    fmt.Sprintf("srt://%s:%d", d.req.SRTHost, d.req.SRTPort),
+		Format: "mpegts", // it'll change based on input, i.e. rmtp flv
+		Options: map[entities.DonutInputOptionKey]string{
+			entities.DonutSRTStreamID:  d.req.SRTStreamID,
+			entities.DonutSRTTranstype: "live",
+			entities.DonutSRTsmoother:  "live",
+		},
+	}
 }
