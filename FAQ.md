@@ -1,4 +1,4 @@
-# FAQ
+# FAQ & Dev Troubleshooting
 
 ## I can't connect two tabs or browser at the same for the SRT
 
@@ -112,7 +112,20 @@ ref https://github.com/golang/go/issues/54690
 
 ## If you're seeing the error "At least one invalid signature was encountered ... GPG error: http://security." when running the app
 
-If you see the error "At least one invalid signature was encountered." when running `make run`, please run `docker system prune` and try again.
+If you see the error "At least one invalid signature was encountered." when running `make run`, please try to run: 
+
+```
+docker compose stop
+docker compose down -v --rmi all --remove-orphans
+docker system prune -a -f
+docker volume prune -a -f
+docker image prune -a  -f
+
+# make sure to check if it was cleaned properly
+docker system df
+```
+
+Then, uncomment the `Makefile#run` commented lines, and try again.
 
 ```
 3.723 W: GPG error: http://deb.debian.org/debian bookworm InRelease: At least one invalid signature was encountered.
