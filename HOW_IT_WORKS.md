@@ -4,31 +4,29 @@
 sequenceDiagram
     actor User
 
-    box Navy Browser
+    box Navy
         participant browser
     end
- 
-    browser->>+server: GET /
-    server->>+browser: 200 /index.html
-    User->>+browser: feed SRT host, port, and id
-    User->>+browser: click on [connect]
+
+    User->>+browser: feed protocol, host, port, id, and opts
+    User->>+browser: click on [Connect]
     
     Note over server,browser: WebRTC connection setup
     
-    browser->>+browser: create offer
-    browser--)browser: WebRTC.ontrack(video)
-    browser->>+server: POST /doSignaling {offer}
-    server->>+server: set remote {offer}
-    server->>+browser: reply {answer}
-    browser->>+browser: set remote {answer}
+    browser->>+browser: create WebRTC browserOffer
+    browser->>+server: POST /doSignaling {browserOffer}
 
-    Note over server,browser: WebRTC connection setup
-
-    loop Async SRT to WebRTC
-        server--)SRT: mpegFrom(SRT)
-        server--)browser: WebRTC.WriteSample(mpegts.PES.Data)
+    loop Async streaming
+        server--)streaming server: fetchMedia
+        server--)server: ffmpeg::libav demux/transcode
+        server--)browser: sendWebRTCMedia
     end
 
+    server->>+browser: reply WebRTC {serverOffer}
+
+    Note over server,browser: WebRTC connection setup
     
-    browser--)User: render frames
+    browser--)User: render audio/video frames
 ```
+
+# Architecture

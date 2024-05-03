@@ -21,6 +21,7 @@ type WebRTCSetupResponse struct {
 	LocalSDP   *webrtc.SessionDescription
 }
 
+// TODO: make it agnostic from streaming protocol when implementing RTMP
 type RequestParams struct {
 	SRTHost     string
 	SRTPort     uint16 `json:",string"`

@@ -126,7 +126,7 @@ func (d *donutEngine) RecipeFor(server, client *entities.StreamInfo) *entities.D
 }
 
 func (d *donutEngine) Appetizer() entities.DonutAppetizer {
-	// TODO: implement input based on param
+	// TODO: implement input based on param to build proper SRT/RTMP/etc
 	return entities.DonutAppetizer{
 		URL:    fmt.Sprintf("srt://%s:%d", d.req.SRTHost, d.req.SRTPort),
 		Format: "mpegts", // it'll change based on input, i.e. rmtp flv
