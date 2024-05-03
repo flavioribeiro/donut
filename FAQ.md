@@ -115,11 +115,7 @@ ref https://github.com/golang/go/issues/54690
 If you see the error "At least one invalid signature was encountered." when running `make run`, please try to run: 
 
 ```
-docker compose stop
-docker compose down -v --rmi all --remove-orphans
-docker system prune -a -f
-docker volume prune -a -f
-docker image prune -a  -f
+docker-compose down -v --rmi all --remove-orphans &&  docker volume prune -a -f && docker system prune -a -f && docker builder prune -a -f
 
 # make sure to check if it was cleaned properly
 docker system df
