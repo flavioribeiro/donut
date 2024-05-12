@@ -13,8 +13,10 @@ services:
       - "6060:6060"
     depends_on:
       - srt
+      - rtmp
     links:
       - srt
+      - rtmp
 
   test:
     build:
@@ -35,6 +37,19 @@ services:
     volumes:
       - "./:/app/"
     command: "golangci-lint run -v"
+
+  rtmp: # simulating an RTMP live transmission
+    image: jrottenberg/ffmpeg:4.4-alpine
+    entrypoint: sh
+    command: "/scripts/ffmpeg_rtmp.sh"
+    volumes:
+      - "./scripts:/scripts"
+      - "./fonts/0xProto:/usr/share/fonts"
+    environment:
+      - RTMP_HOST=0.0.0.0
+      - RTMP_PORT=1935
+    ports:
+      - "1935:1935"
 
   srt:
     build:
@@ -62,8 +77,8 @@ services:
     command: "/scripts/ffmpeg_mpegts_udp.sh"
     volumes:
       - "./scripts:/scripts"
+      - "./fonts/0xProto:/usr/share/fonts"      
     environment:
       - SRT_INPUT_HOST=srt
       - SRT_INPUT_PORT=1234
       - PKT_SIZE=1316
-

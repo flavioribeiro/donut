@@ -8,23 +8,21 @@
 
 <body>
 
-	<h1>SRT Config</h1>
-	<b> SRT Host </b>
-	<input type="text" id="srt-host" value="srt"> <br />
+	<h1>Remote streaming</h1>
+	<b> URL </b>
+	<input type="text" id="stream-url" value="srt://srt:40052"> <br />
 
-	<b> SRT Port </b>
-	<input type="text" id="srt-port" value="40052" /> <br />
+	<b> ID </b>
+	<input type="text" id="stream-id" value="stream-id" /> <br />
 
-	<b> SRT Stream ID </b>
-	<input type="text" id="srt-stream-id" value="stream-id" /> <br />
 	<button onclick="onConnect()"> Connect </button>
 
 	<h1>Video</h1>
 	<div id="remoteVideos"></div>
-	
+
 	<h1>Metadata</h1>
 	<div id="metadata"></div>
-	
+
 	<h1>Logs</h1>
 	<div id="log"></div>
 
@@ -40,25 +38,8 @@
 	}
 
 	docReady(function () {
-		const queryString = window.location.search;
-		const urlParams = new URLSearchParams(queryString);
-
 		window.onConnect = () => {
 			window.startSession();
-		}
-
-		if (urlParams.has('srtHost')) {
-			document.getElementById('srt-host').value = urlParams.get('srtHost');
-		}
-		if (urlParams.has('srtPort')) {
-			document.getElementById('srt-port').value = urlParams.get('srtPort');
-		}
-		if (urlParams.has('srtStreamId')) {
-			document.getElementById('srt-stream-id').value = urlParams.get('srtStreamId');
-		}
-
-		if (urlParams.get('autoplay') === "true") {
-			onConnect();
 		}
 	});
 </script>

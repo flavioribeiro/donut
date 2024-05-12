@@ -20,6 +20,7 @@ RUN apt-get clean && apt-get update && \
 ENV GOPROXY=direct
 
 COPY . ./donut
+COPY ./go-astiav/ /Users/leandro.moreira/src/go-astiav/
 WORKDIR ${WD}/donut
 RUN go build .
 CMD ["/usr/src/app/donut/donut", "--enable-ice-mux=true"]

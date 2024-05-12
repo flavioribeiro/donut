@@ -42,14 +42,14 @@ func (c *WebRTCController) Setup(cancel context.CancelFunc, donutRecipe *entitie
 	response.Connection = peer
 
 	var videoTrack *webrtc.TrackLocalStaticSample
-	videoTrack, err = c.CreateTrack(peer, donutRecipe.Video.Codec, string(entities.VideoType), params.SRTStreamID)
+	videoTrack, err = c.CreateTrack(peer, donutRecipe.Video.Codec, string(entities.VideoType), params.StreamID)
 	if err != nil {
 		return nil, err
 	}
 	response.Video = videoTrack
 
 	var audioTrack *webrtc.TrackLocalStaticSample
-	audioTrack, err = c.CreateTrack(peer, donutRecipe.Audio.Codec, string(entities.AudioType), params.SRTStreamID)
+	audioTrack, err = c.CreateTrack(peer, donutRecipe.Audio.Codec, string(entities.AudioType), params.StreamID)
 	if err != nil {
 		return nil, err
 	}
