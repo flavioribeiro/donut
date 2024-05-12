@@ -6,7 +6,6 @@ do
         -f lavfi -i sine=frequency=1000:sample_rate=44100 \
         -c:v libx264 -preset veryfast -tune zerolatency -profile:v baseline \
         -vf "drawtext=text='RTMP streaming':box=1:boxborderw=10:x=(w-text_w)/2:y=(h-text_h)/2:fontsize=128:fontcolor=black" \
-        -bsf:v h264_mp4toannexb \
         -b:v 1000k -bufsize 2000k -x264opts keyint=30:min-keyint=30:scenecut=-1 \
         -c:a aac -b:a 128k \
         -f flv -listen 1 -rtmp_live live "rtmp://${RTMP_HOST}:${RTMP_PORT}/live/app"

@@ -184,6 +184,7 @@ func (c *LibAVFFmpegStreamer) Stream(donut *entities.DonutParameters) {
 					// 	}
 					// }
 
+					// https://github.com/FFmpeg/FFmpeg/blob/9c6c4f3d476d7a8d423ec3b954254c6a67ebc792/libavformat/mux.c#L1351
 					bistreamFilter := astiav.FindBitStreamFilterByName("h264_mp4toannexb")
 					if bistreamFilter == nil {
 						c.l.Info("cannot find bit stream filter")
@@ -194,6 +195,13 @@ func (c *LibAVFFmpegStreamer) Stream(donut *entities.DonutParameters) {
 						c.l.Info("error while AllocBitStreamContext", err)
 						return
 					}
+
+					bsfCtx.SetTimeBaseIn(s.inputStream.TimeBase())
+					if err := s.inputStream.CodecParameters().Copy(bsfCtx.CodecParametersIn()); err != nil {
+						c.l.Info("error copying codec parameter", err)
+						return
+					}
+
 					if err := bsfCtx.Init(); err != nil {
 						c.l.Info("error while init", err)
 						return

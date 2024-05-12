@@ -114,9 +114,9 @@ func (d *donutEngine) RecipeFor(server, client *entities.StreamInfo) (*entities.
 	r := &entities.DonutRecipe{
 		Input: appetizer,
 		Video: entities.DonutMediaTask{
-			// Action: entities.DonutBypass,
-			Action: entities.DonutTranscode,
-			Codec:  entities.H264,
+			Action: entities.DonutBypass,
+			// Action: entities.DonutTranscode,
+			Codec: entities.H264,
 		},
 		Audio: entities.DonutMediaTask{
 			Action: entities.DonutTranscode,
