@@ -30,3 +30,43 @@ sequenceDiagram
 ```
 
 # Architecture
+
+```mermaid
+classDiagram
+    class Signaling{
+        +ServeHTTP()
+    }
+
+    class WebRTC{
+        +Setup()
+        +CreatePeerConnection()
+        +CreateTrack()
+        +CreateDataChannel()
+        +SendMediaSample(track)
+        +SendMetadata(track)
+    }
+
+    class DonutEngine{
+        +EngineFor(params)
+        +ServerIngredients()
+        +ClientIngredients()
+        +RecipeFor(server, client)
+        +Serve(donutParams)
+        +Appetizer()
+    }
+
+    class Prober {
+        +StreamInfo(appetizer)
+	    +Match(params)
+    }
+
+    class Streamer {
+        +Stream(donutParams)
+	    +Match(params)
+    }
+
+    DonutEngine *-- Signaling
+    WebRTC *-- Signaling
+    Prober *-- DonutEngine
+    Streamer *-- DonutEngine
+```
