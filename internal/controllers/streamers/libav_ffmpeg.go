@@ -73,6 +73,9 @@ type streamContext struct {
 	encCodec        *astiav.Codec
 	encCodecContext *astiav.CodecContext
 	encPkt          *astiav.Packet
+
+	// Bit stream filter
+	bsfContext *astiav.BSFContext
 }
 
 type libAVParams struct {
@@ -114,6 +117,12 @@ func (c *LibAVFFmpegStreamer) Stream(donut *entities.DonutParameters) {
 		return
 	}
 
+	c.l.Infof("preparing bit stream filters")
+	if err := c.prepareBitStreamFilters(p, closer, donut); err != nil {
+		c.onError(err, donut)
+		return
+	}
+
 	inPkt := astiav.AllocPacket()
 	closer.Add(inPkt.Free)
 
@@ -143,19 +152,27 @@ func (c *LibAVFFmpegStreamer) Stream(donut *entities.DonutParameters) {
 
 			isVideo := s.decCodecContext.MediaType() == astiav.MediaTypeVideo
 			isAudio := s.decCodecContext.MediaType() == astiav.MediaTypeAudio
+			var currentMedia *entities.DonutMediaTask
 
-			if isVideo && donut.Recipe.Video.DonutBitStreamFilter != nil {
-				c.applyBitStreamFilter(inPkt, s, donut.Recipe.Video.DonutBitStreamFilter)
+			if isAudio {
+				currentMedia = &donut.Recipe.Audio
+			} else if isVideo {
+				currentMedia = &donut.Recipe.Video
+			} else {
+				c.l.Warnf("ignoring to stream for media type %s", s.decCodecContext.MediaType().String())
+				continue
 			}
 
-			if isAudio && donut.Recipe.Audio.DonutBitStreamFilter != nil {
-				c.applyBitStreamFilter(inPkt, s, donut.Recipe.Audio.DonutBitStreamFilter)
+			if currentMedia.DonutBitStreamFilter != nil {
+				if err := c.applyBitStreamFilter(inPkt, s, closer, currentMedia.DonutBitStreamFilter); err != nil {
+					c.onError(err, donut)
+					return
+				}
 			}
-
 			inPkt.RescaleTs(s.inputStream.TimeBase(), s.decCodecContext.TimeBase())
 
-			isVideoBypass := donut.Recipe.Video.Action == entities.DonutBypass
-			if isVideo && isVideoBypass {
+			byPass := currentMedia.Action == entities.DonutBypass
+			if isVideo && byPass {
 				if donut.OnVideoFrame != nil {
 					if err := donut.OnVideoFrame(inPkt.Data(), entities.MediaFrameContext{
 						PTS:      int(inPkt.Pts()),
@@ -168,9 +185,7 @@ func (c *LibAVFFmpegStreamer) Stream(donut *entities.DonutParameters) {
 				}
 				continue
 			}
-
-			isAudioBypass := donut.Recipe.Audio.Action == entities.DonutBypass
-			if isAudio && isAudioBypass {
+			if isAudio && byPass {
 				if donut.OnAudioFrame != nil {
 					if err := donut.OnAudioFrame(inPkt.Data(), entities.MediaFrameContext{
 						PTS:      int(inPkt.Pts()),
@@ -499,32 +514,58 @@ func (c *LibAVFFmpegStreamer) prepareFilters(p *libAVParams, closer *astikit.Clo
 	return nil
 }
 
-func (c *LibAVFFmpegStreamer) applyBitStreamFilter(p *astiav.Packet, s *streamContext, filter *entities.DonutBitStreamFilter) (*astiav.Packet, error) {
-	bsf := astiav.FindBitStreamFilterByName(string(*filter))
-	if bsf == nil {
-		return nil, fmt.Errorf("can not find the filter %s", string(*filter))
-	}
+func (c *LibAVFFmpegStreamer) prepareBitStreamFilters(p *libAVParams, closer *astikit.Closer, donut *entities.DonutParameters) error {
+	for _, s := range p.streams {
+		isVideo := s.decCodecContext.MediaType() == astiav.MediaTypeVideo
+		isAudio := s.decCodecContext.MediaType() == astiav.MediaTypeAudio
+		var currentMedia *entities.DonutMediaTask
 
-	bsfCtx, err := astiav.AllocBitStreamContext(bsf)
-	if err != nil {
-		return nil, fmt.Errorf("error while allocating bit stream context %w", err)
-	}
+		if isAudio {
+			currentMedia = &donut.Recipe.Audio
+		} else if isVideo {
+			currentMedia = &donut.Recipe.Video
+		} else {
+			c.l.Warnf("ignoring bit stream filter for media type %s", s.decCodecContext.MediaType().String())
+			continue
+		}
 
-	bsfCtx.SetTimeBaseIn(s.inputStream.TimeBase())
-	if err := s.inputStream.CodecParameters().Copy(bsfCtx.CodecParametersIn()); err != nil {
-		return nil, fmt.Errorf("error while copying codec parameters %w", err)
-	}
+		if currentMedia.DonutBitStreamFilter == nil {
+			c.l.Infof("no bit stream filter configured for %s", s.decCodecContext.String())
+			continue
+		}
 
-	if err := bsfCtx.Init(); err != nil {
-		return nil, fmt.Errorf("error while initiating %w", err)
+		bsf := astiav.FindBitStreamFilterByName(string(*currentMedia.DonutBitStreamFilter))
+		if bsf == nil {
+			return fmt.Errorf("can not find the filter %s", string(*currentMedia.DonutBitStreamFilter))
+		}
+
+		var err error
+		s.bsfContext, err = astiav.AllocBitStreamContext(bsf)
+		if err != nil {
+			return fmt.Errorf("error while allocating bit stream context %w", err)
+		}
+		closer.Add(s.bsfContext.Free)
+
+		s.bsfContext.SetTimeBaseIn(s.inputStream.TimeBase())
+		if err := s.inputStream.CodecParameters().Copy(s.bsfContext.CodecParametersIn()); err != nil {
+			return fmt.Errorf("error while copying codec parameters %w", err)
+		}
+
+		if err := s.bsfContext.Init(); err != nil {
+			return fmt.Errorf("error while initiating %w", err)
+		}
 	}
-	if err := bsfCtx.SendPacket(p); err != nil {
-		return nil, fmt.Errorf("error while sending the packet %w", err)
+	return nil
+}
+
+func (c *LibAVFFmpegStreamer) applyBitStreamFilter(p *astiav.Packet, s *streamContext, closer *astikit.Closer, filter *entities.DonutBitStreamFilter) error {
+	if err := s.bsfContext.SendPacket(p); err != nil {
+		return fmt.Errorf("error while sending the packet %w", err)
 	}
-	if bsfCtx.ReceivePacket(p) != nil {
-		return nil, fmt.Errorf("error while receiving the packet %w", err)
+	if err := s.bsfContext.ReceivePacket(p); err != nil {
+		return fmt.Errorf("error while receiving the packet %w", err)
 	}
-	return p, nil
+	return nil
 }
 
 func (c *LibAVFFmpegStreamer) filterAndEncode(f *astiav.Frame, s *streamContext, donut *entities.DonutParameters) (err error) {
