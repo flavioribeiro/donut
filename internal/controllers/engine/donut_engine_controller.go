@@ -37,12 +37,12 @@ func NewDonutEngineController(p DonutEngineParams) *DonutEngineController {
 func (c *DonutEngineController) EngineFor(req *entities.RequestParams) (DonutEngine, error) {
 	prober := c.selectProberFor(req)
 	if prober == nil {
-		return nil, fmt.Errorf("request %v: not fulfilled error %w", req, entities.ErrMissingProber)
+		return nil, fmt.Errorf("request %v: not fulfilled. error %w", req, entities.ErrMissingProber)
 	}
 
 	streamer := c.selectStreamerFor(req)
 	if streamer == nil {
-		return nil, fmt.Errorf("request %v: not fulfilled error %w", req, entities.ErrMissingStreamer)
+		return nil, fmt.Errorf("request %v: not fulfilled. error %w", req, entities.ErrMissingStreamer)
 	}
 
 	return &donutEngine{
@@ -114,9 +114,9 @@ func (d *donutEngine) RecipeFor(server, client *entities.StreamInfo) (*entities.
 	r := &entities.DonutRecipe{
 		Input: appetizer,
 		Video: entities.DonutMediaTask{
-			Action: entities.DonutBypass,
-			// Action: entities.DonutTranscode,
-			Codec: entities.H264,
+			Action:               entities.DonutBypass,
+			Codec:                entities.H264,
+			DonutBitStreamFilter: &entities.DonutH264AnnexB,
 		},
 		Audio: entities.DonutMediaTask{
 			Action: entities.DonutTranscode,
@@ -137,15 +137,20 @@ func (d *donutEngine) RecipeFor(server, client *entities.StreamInfo) (*entities.
 }
 
 func (d *donutEngine) Appetizer() (entities.DonutAppetizer, error) {
-	if strings.Contains(strings.ToLower(d.req.StreamURL), "rtmp") {
+	isRTMP := strings.Contains(strings.ToLower(d.req.StreamURL), "rtmp")
+	isSRT := strings.Contains(strings.ToLower(d.req.StreamURL), "srt")
+
+	if isRTMP {
 		return entities.DonutAppetizer{
 			URL: fmt.Sprintf("%s/%s", d.req.StreamURL, d.req.StreamID),
 			Options: map[entities.DonutInputOptionKey]string{
 				entities.DonutRTMPLive: "live",
 			},
-			// Format: "flv",
+			Format: "flv",
 		}, nil
-	} else if strings.Contains(strings.ToLower(d.req.StreamURL), "srt") {
+	}
+
+	if isSRT {
 		return entities.DonutAppetizer{
 			URL:    d.req.StreamURL,
 			Format: "mpegts", // TODO: check how to get format for srt

@@ -10,9 +10,6 @@ run-dev-total-rebuild:
 clean-docker:
 	docker-compose down -v --rmi all --remove-orphans &&  docker volume prune -a -f && docker system prune -a -f && docker builder prune -a -f
 
-run-srt:
-	docker compose stop && docker compose down && docker compose build srt && docker compose up srt
-
 lint:
 	docker compose stop lint && docker compose down lint && docker compose run --rm lint	
 
