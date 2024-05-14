@@ -20,8 +20,6 @@ RUN apt-get clean && apt-get update && \
 ENV GOPROXY=direct
 
 COPY . ./donut
-# TODO: To remove this hack once the upstream gets merged
-COPY ./local-tmp-go-astiav// /Users/leandro.moreira/src/go-astiav/
 WORKDIR ${WD}/donut
 RUN go build .
 CMD ["/usr/src/app/donut/donut", "--enable-ice-mux=true"]

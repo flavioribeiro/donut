@@ -2,11 +2,8 @@ module github.com/flavioribeiro/donut
 
 go 1.19
 
-// TODO: To remove this hack once the upstream gets merged
-replace github.com/asticode/go-astiav => /Users/leandro.moreira/src/go-astiav
-
 require (
-	github.com/asticode/go-astiav v0.12.0
+	github.com/asticode/go-astiav v0.14.2-0.20240514161420-d8844951c978
 	github.com/asticode/go-astikit v0.42.0
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/pion/webrtc/v3 v3.1.47

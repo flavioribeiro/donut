@@ -75,7 +75,7 @@ type streamContext struct {
 	encPkt          *astiav.Packet
 
 	// Bit stream filter
-	bsfContext *astiav.BSFContext
+	bsfContext *astiav.BitStreamFilterContext
 }
 
 type libAVParams struct {
@@ -540,7 +540,7 @@ func (c *LibAVFFmpegStreamer) prepareBitStreamFilters(p *libAVParams, closer *as
 		}
 
 		var err error
-		s.bsfContext, err = astiav.AllocBitStreamContext(bsf)
+		s.bsfContext, err = astiav.AllocBitStreamFilterContext(bsf)
 		if err != nil {
 			return fmt.Errorf("error while allocating bit stream context %w", err)
 		}
@@ -551,7 +551,7 @@ func (c *LibAVFFmpegStreamer) prepareBitStreamFilters(p *libAVParams, closer *as
 			return fmt.Errorf("error while copying codec parameters %w", err)
 		}
 
-		if err := s.bsfContext.Init(); err != nil {
+		if err := s.bsfContext.Initialize(); err != nil {
 			return fmt.Errorf("error while initiating %w", err)
 		}
 	}
