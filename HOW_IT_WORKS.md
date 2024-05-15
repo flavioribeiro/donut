@@ -16,15 +16,17 @@ sequenceDiagram
     browser->>+browser: create WebRTC browserOffer
     browser->>+server: POST /doSignaling {browserOffer}
 
+    server->>+browser: reply WebRTC {serverOffer}
+
+    Note over server,browser: WebRTC connection setup
+
+    browser->>+User: establish WebRTC Connection
+
     loop Async streaming
         server--)streaming server: fetchMedia
         server--)server: ffmpeg::libav demux/transcode
         server--)browser: sendWebRTCMedia
     end
-
-    server->>+browser: reply WebRTC {serverOffer}
-
-    Note over server,browser: WebRTC connection setup
     
     browser--)User: render audio/video frames
 ```
