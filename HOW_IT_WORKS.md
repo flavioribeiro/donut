@@ -31,7 +31,7 @@ sequenceDiagram
     browser--)User: render audio/video frames
 ```
 
-# Architecture
+# Core components
 
 ```mermaid
 classDiagram
