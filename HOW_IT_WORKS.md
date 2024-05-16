@@ -26,9 +26,8 @@ sequenceDiagram
         donut--)streaming server: fetchMedia
         donut--)donut: ffmpeg::libav demux/transcode
         donut--)browser: sendWebRTCMedia
+        browser--)User: render audio/video frames
     end
-    
-    browser--)User: render audio/video frames
 ```
 
 # Core components
