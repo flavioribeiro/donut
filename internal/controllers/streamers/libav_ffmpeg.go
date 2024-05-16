@@ -76,6 +76,7 @@ type streamContext struct {
 
 	// Bit stream filter
 	bsfContext *astiav.BitStreamFilterContext
+	bsfPacket  *astiav.Packet
 }
 
 type libAVParams struct {
@@ -151,7 +152,7 @@ func (c *LibAVFFmpegStreamer) Stream(donut *entities.DonutParameters) {
 			}
 
 			if s.bsfContext != nil {
-				if err := c.applyBitStreamFilter(inPkt, s, closer, donut); err != nil {
+				if err := c.applyBitStreamFilter(inPkt, s, donut); err != nil {
 					c.onError(err, donut)
 					return
 				}
@@ -495,6 +496,8 @@ func (c *LibAVFFmpegStreamer) prepareBitStreamFilters(p *libAVParams, closer *as
 		if err := s.bsfContext.Initialize(); err != nil {
 			return fmt.Errorf("error while initiating %w", err)
 		}
+		s.bsfPacket = astiav.AllocPacket()
+		closer.Add(s.bsfPacket.Free)
 	}
 	return nil
 }
@@ -563,25 +566,21 @@ func (c *LibAVFFmpegStreamer) processPacket(pkt *astiav.Packet, s *streamContext
 	return nil
 }
 
-func (c *LibAVFFmpegStreamer) applyBitStreamFilter(pkt *astiav.Packet, s *streamContext, closer *astikit.Closer, donut *entities.DonutParameters) error {
-	bitStreamPkt := astiav.AllocPacket()
-	closer.Add(bitStreamPkt.Free)
-
-	// TODO: enable bsf per stream
+func (c *LibAVFFmpegStreamer) applyBitStreamFilter(pkt *astiav.Packet, s *streamContext, donut *entities.DonutParameters) error {
 	if err := s.bsfContext.SendPacket(pkt); err != nil && !errors.Is(err, astiav.ErrEagain) {
 		return fmt.Errorf("sending bit stream packet failed: %w", err)
 	}
 
 	for {
-		if err := s.bsfContext.ReceivePacket(bitStreamPkt); err != nil {
+		if err := s.bsfContext.ReceivePacket(s.bsfPacket); err != nil {
 			if errors.Is(err, astiav.ErrEof) || errors.Is(err, astiav.ErrEagain) {
 				break
 			}
 			return fmt.Errorf("receiving bit stream packet failed: %w", err)
 		}
 
-		c.processPacket(bitStreamPkt, s, donut)
-		bitStreamPkt.Unref()
+		c.processPacket(s.bsfPacket, s, donut)
+		s.bsfPacket.Unref()
 	}
 	return nil
 }
