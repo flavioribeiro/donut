@@ -20,13 +20,13 @@ sequenceDiagram
 
     Note over donut,browser: WebRTC connection setup
 
-    browser->>+User: establish WebRTC Connection
+    browser->>+browser: establish WebRTC Connection
 
     loop Async streaming
         donut--)streaming server: fetchMedia
         donut--)donut: ffmpeg::libav demux/transcode
         donut--)browser: sendWebRTCMedia
-        browser--)User: render audio/video frames
+        browser--)browser: render audio/video frames
     end
 ```
 
