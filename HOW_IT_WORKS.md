@@ -25,7 +25,7 @@ sequenceDiagram
         donut--)donut: ffmpeg::libav demux/transcode
         donut--)browser: sendWebRTCMedia
         browser--)browser: render audio/video frames
-        User--)browser: see/hear media
+        User--)browser: watch media
     end
 ```
 
