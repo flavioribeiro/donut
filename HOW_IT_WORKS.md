@@ -8,7 +8,7 @@ sequenceDiagram
         participant browser
     end
 
-    User->>+browser: feed protocol, host, port, id, and opts
+    User->>+browser: input protocol, host, port, id, and opts
     User->>+browser: click on [Connect]
     
     Note over donut,browser: WebRTC connection setup
@@ -20,13 +20,12 @@ sequenceDiagram
 
     Note over donut,browser: WebRTC connection setup
 
-    browser->>+browser: establish WebRTC Connection
-
     loop Async streaming
         donut--)streaming server: fetchMedia
         donut--)donut: ffmpeg::libav demux/transcode
         donut--)browser: sendWebRTCMedia
         browser--)browser: render audio/video frames
+        User--)browser: see/hear media
     end
 ```
 
