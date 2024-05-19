@@ -2,15 +2,13 @@
 window.metadataMessages = {}
 
 window.startSession = () => {
-  let srtHost = document.getElementById('srt-host').value;
-  let srtPort = document.getElementById('srt-port').value;
-  let srtStreamId = document.getElementById('srt-stream-id').value;
+  let streamURL = document.getElementById('stream-url').value;
+  let streamID = document.getElementById('stream-id').value;
 
   setupWebRTC((pc, offer) => {
     let srtFullAddress = JSON.stringify({
-      "srtHost": srtHost,
-      "srtPort": srtPort,
-      "srtStreamId": srtStreamId,
+      "streamURL": streamURL,
+      "streamID": streamID,
       offer
     });
 
@@ -142,7 +140,9 @@ const log = (msg, level = "info") => {
   const el = document.createElement("p")
 
   if (typeof(msg) !== "string") {
+    orig = msg
     msg = "unknown log msg type " + typeof(msg)
+    msg = msg + " [" + orig + "]"
     level = "error"
   }
 

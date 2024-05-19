@@ -3,31 +3,48 @@
 <head>
 	<title>donut</title>
 	<script src="demo.js"></script>
-	<style src="demo.css"></style>
+	<link rel="stylesheet" href="demo.css">
+	</link>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300..800;1,300..800&display=swap"
+		rel="stylesheet">
 </head>
 
 <body>
 
-	<h1>SRT Config</h1>
-	<b> SRT Host </b>
-	<input type="text" id="srt-host" value="srt"> <br />
+	<fieldset>
+		<legend>Remote streaming</legend>
+		<p>
+			<label for="stream-url">URL: <span aria-label="required">*</span></label>
+			<input id="stream-url" type="text" name="stream-url" required value="srt://haivision_srt:40052" />
+			<label class="hint">rtmp://nginx_rtmp/live</label>
+		</p>
+		<p>
+			<label for="stream-id">ID: <span aria-label="required">*</span></label>
+			<input id="stream-id" type="text" name="stream-id" required value="stream-id" />
+			<label class="hint">app</label>
+		</p>
+		<p>
+			<button onclick="onConnect()"> Connect </button>
+		</p>
+	</fieldset>
 
-	<b> SRT Port </b>
-	<input type="text" id="srt-port" value="40052" /> <br />
+	<fieldset>
+		<legend>Video</legend>
+		<div id="remoteVideos"></div>
+	</fieldset>
 
-	<b> SRT Stream ID </b>
-	<input type="text" id="srt-stream-id" value="stream-id" /> <br />
-	<button onclick="onConnect()"> Connect </button>
 
-	<h1>Video</h1>
-	<div id="remoteVideos"></div>
-	
-	<h1>Metadata</h1>
-	<div id="metadata"></div>
-	
-	<h1>Logs</h1>
-	<div id="log"></div>
+	<fieldset>
+		<legend>Metadata</legend>
+		<div id="metadata"></div>
+	</fieldset>
 
+	<fieldset>
+		<legend>Logs</legend>
+		<div id="log"></div>
+	</fieldset>
 </body>
 
 <script>
@@ -40,25 +57,8 @@
 	}
 
 	docReady(function () {
-		const queryString = window.location.search;
-		const urlParams = new URLSearchParams(queryString);
-
 		window.onConnect = () => {
 			window.startSession();
-		}
-
-		if (urlParams.has('srtHost')) {
-			document.getElementById('srt-host').value = urlParams.get('srtHost');
-		}
-		if (urlParams.has('srtPort')) {
-			document.getElementById('srt-port').value = urlParams.get('srtPort');
-		}
-		if (urlParams.has('srtStreamId')) {
-			document.getElementById('srt-stream-id').value = urlParams.get('srtStreamId');
-		}
-
-		if (urlParams.get('autoplay') === "true") {
-			onConnect();
 		}
 	});
 </script>

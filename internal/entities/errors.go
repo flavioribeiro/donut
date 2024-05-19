@@ -9,6 +9,10 @@ var ErrHTTPGetOnly = errors.New("you must use http GET verb")
 var ErrHTTPPostOnly = errors.New("you must use http POST verb")
 var ErrMissingParamsOffer = errors.New("ParamsOffer must not be nil")
 
+var ErrMissingStreamURL = errors.New("stream URL must not be nil")
+var ErrMissingStreamID = errors.New("stream ID must not be nil")
+var ErrUnsupportedStreamURL = errors.New("unsupported stream")
+
 var ErrMissingSRTHost = errors.New("SRTHost must not be nil")
 var ErrMissingSRTPort = errors.New("SRTPort must be valid")
 var ErrMissingSRTStreamID = errors.New("SRTStreamID must not be empty")

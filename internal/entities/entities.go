@@ -3,6 +3,7 @@ package entities
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/asticode/go-astiav"
@@ -21,12 +22,10 @@ type WebRTCSetupResponse struct {
 	LocalSDP   *webrtc.SessionDescription
 }
 
-// TODO: make it agnostic from streaming protocol when implementing RTMP
 type RequestParams struct {
-	SRTHost     string
-	SRTPort     uint16 `json:",string"`
-	SRTStreamID string
-	Offer       webrtc.SessionDescription
+	StreamURL string
+	StreamID  string
+	Offer     webrtc.SessionDescription
 }
 
 func (p *RequestParams) Valid() error {
@@ -34,16 +33,18 @@ func (p *RequestParams) Valid() error {
 		return ErrMissingParamsOffer
 	}
 
-	if p.SRTHost == "" {
-		return ErrMissingSRTHost
+	if p.StreamID == "" {
+		return ErrMissingStreamID
 	}
 
-	if p.SRTPort == 0 {
-		return ErrMissingSRTPort
+	if p.StreamURL == "" {
+		return ErrMissingStreamURL
 	}
+	isRTMP := strings.Contains(strings.ToLower(p.StreamURL), "rtmp")
+	isSRT := strings.Contains(strings.ToLower(p.StreamURL), "srt")
 
-	if p.SRTStreamID == "" {
-		return ErrMissingSRTStreamID
+	if !(isRTMP || isSRT) {
+		return ErrUnsupportedStreamURL
 	}
 
 	return nil
@@ -53,7 +54,7 @@ func (p *RequestParams) String() string {
 	if p == nil {
 		return ""
 	}
-	return fmt.Sprintf("ParamsOffer %v:%v/%v", p.SRTHost, p.SRTPort, p.SRTStreamID)
+	return fmt.Sprintf("RequestParams {StreamURL: %s, StreamID: %s}", p.StreamURL, p.StreamID)
 }
 
 type MessageType string
@@ -151,6 +152,10 @@ type DonutMediaTaskAction string
 var DonutTranscode DonutMediaTaskAction = "transcode"
 var DonutBypass DonutMediaTaskAction = "bypass"
 
+type DonutBitStreamFilter string
+
+var DonutH264AnnexB DonutBitStreamFilter = "h264_mp4toannexb"
+
 // TODO: split entities per domain or files avoiding name collision.
 
 // DonutMediaTask is a transformation template to apply over a media.
@@ -163,6 +168,9 @@ type DonutMediaTask struct {
 	// If no value is provided ffmpeg will use defaults.
 	// For instance, if one does not provide bit rate, it'll fallback to 64000 bps (opus)
 	CodecContextOptions []LibAVOptionsCodecContext
+
+	// DonutBitStreamFilter is the bitstream filter
+	DonutBitStreamFilter *DonutBitStreamFilter
 }
 
 type DonutInputOptionKey string
@@ -174,6 +182,8 @@ func (d DonutInputOptionKey) String() string {
 var DonutSRTStreamID DonutInputOptionKey = "srt_streamid"
 var DonutSRTsmoother DonutInputOptionKey = "smoother"
 var DonutSRTTranstype DonutInputOptionKey = "transtype"
+
+var DonutRTMPLive DonutInputOptionKey = "rtmp_live"
 
 type DonutInputFormat string
 

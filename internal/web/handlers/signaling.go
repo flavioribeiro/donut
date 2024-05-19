@@ -41,27 +41,33 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 	if err != nil {
 		return err
 	}
+	h.l.Infof("RequestParams %s", params.String())
 
 	donutEngine, err := h.donut.EngineFor(&params)
 	if err != nil {
 		return err
 	}
+	h.l.Infof("DonutEngine %#v", donutEngine)
 
 	// server side media info
 	serverStreamInfo, err := donutEngine.ServerIngredients()
 	if err != nil {
 		return err
 	}
+	h.l.Infof("ServerIngredients %#v", serverStreamInfo)
+
 	// client side media support
 	clientStreamInfo, err := donutEngine.ClientIngredients()
 	if err != nil {
 		return err
 	}
+	h.l.Infof("ClientIngredients %#v", clientStreamInfo)
 
-	donutRecipe := donutEngine.RecipeFor(serverStreamInfo, clientStreamInfo)
-	if donutRecipe == nil {
-		return entities.ErrMissingCompatibleStreams
+	donutRecipe, err := donutEngine.RecipeFor(serverStreamInfo, clientStreamInfo)
+	if err != nil {
+		return err
 	}
+	h.l.Infof("DonutRecipe %#v", donutRecipe)
 
 	// We can't defer calling cancel here because it'll live alongside the stream.
 	ctx, cancel := context.WithCancel(context.Background())
@@ -70,6 +76,7 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 		cancel()
 		return err
 	}
+	h.l.Infof("WebRTCResponse %#v", webRTCResponse)
 
 	go donutEngine.Serve(&entities.DonutParameters{
 		Cancel: cancel,
@@ -103,6 +110,7 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 		cancel()
 		return err
 	}
+	h.l.Infof("webRTCResponse %#v", webRTCResponse)
 
 	return nil
 }

@@ -2,6 +2,7 @@ package engine
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/flavioribeiro/donut/internal/controllers/probers"
 	"github.com/flavioribeiro/donut/internal/controllers/streamers"
@@ -11,10 +12,10 @@ import (
 )
 
 type DonutEngine interface {
-	Appetizer() entities.DonutAppetizer
+	Appetizer() (entities.DonutAppetizer, error)
 	ServerIngredients() (*entities.StreamInfo, error)
 	ClientIngredients() (*entities.StreamInfo, error)
-	RecipeFor(server, client *entities.StreamInfo) *entities.DonutRecipe
+	RecipeFor(server, client *entities.StreamInfo) (*entities.DonutRecipe, error)
 	Serve(p *entities.DonutParameters)
 }
 
@@ -36,12 +37,12 @@ func NewDonutEngineController(p DonutEngineParams) *DonutEngineController {
 func (c *DonutEngineController) EngineFor(req *entities.RequestParams) (DonutEngine, error) {
 	prober := c.selectProberFor(req)
 	if prober == nil {
-		return nil, fmt.Errorf("request %v: not fulfilled error %w", req, entities.ErrMissingProber)
+		return nil, fmt.Errorf("request %v: not fulfilled. error %w", req, entities.ErrMissingProber)
 	}
 
 	streamer := c.selectStreamerFor(req)
 	if streamer == nil {
-		return nil, fmt.Errorf("request %v: not fulfilled error %w", req, entities.ErrMissingStreamer)
+		return nil, fmt.Errorf("request %v: not fulfilled. error %w", req, entities.ErrMissingStreamer)
 	}
 
 	return &donutEngine{
@@ -80,7 +81,11 @@ type donutEngine struct {
 }
 
 func (d *donutEngine) ServerIngredients() (*entities.StreamInfo, error) {
-	return d.prober.StreamInfo(d.Appetizer())
+	appetizer, err := d.Appetizer()
+	if err != nil {
+		return nil, err
+	}
+	return d.prober.StreamInfo(appetizer)
 }
 
 func (d *donutEngine) ClientIngredients() (*entities.StreamInfo, error) {
@@ -91,7 +96,7 @@ func (d *donutEngine) Serve(p *entities.DonutParameters) {
 	d.streamer.Stream(p)
 }
 
-func (d *donutEngine) RecipeFor(server, client *entities.StreamInfo) *entities.DonutRecipe {
+func (d *donutEngine) RecipeFor(server, client *entities.StreamInfo) (*entities.DonutRecipe, error) {
 	// TODO: implement proper matching
 	//
 	// suggestions:
@@ -101,39 +106,57 @@ func (d *donutEngine) RecipeFor(server, client *entities.StreamInfo) *entities.D
 	//     preferable = [vp8, opus]
 	//     if union(preferable, client.medias)
 	//         transcode, preferable
+	appetizer, err := d.Appetizer()
+	if err != nil {
+		return nil, err
+	}
+
 	r := &entities.DonutRecipe{
-		Input: d.Appetizer(),
+		Input: appetizer,
 		Video: entities.DonutMediaTask{
-			Action: entities.DonutBypass,
-			Codec:  entities.H264,
+			Action:               entities.DonutBypass,
+			Codec:                entities.H264,
+			DonutBitStreamFilter: &entities.DonutH264AnnexB,
 		},
 		Audio: entities.DonutMediaTask{
 			Action: entities.DonutTranscode,
 			Codec:  entities.Opus,
 			// TODO: create method list options per Codec
 			CodecContextOptions: []entities.LibAVOptionsCodecContext{
-				// opus specifically works under 48000 Hz
 				entities.SetSampleRate(48000),
-				// once we changed the sample rate we need to update the time base
-				entities.SetTimeBase(1, 48000),
-				// for some reason it's setting "s16"
-				// entities.SetSampleFormat("fltp"),
+				entities.SetSampleFormat("fltp"),
 			},
 		},
 	}
 
-	return r
+	return r, nil
 }
 
-func (d *donutEngine) Appetizer() entities.DonutAppetizer {
-	// TODO: implement input based on param to build proper SRT/RTMP/etc
-	return entities.DonutAppetizer{
-		URL:    fmt.Sprintf("srt://%s:%d", d.req.SRTHost, d.req.SRTPort),
-		Format: "mpegts", // it'll change based on input, i.e. rmtp flv
-		Options: map[entities.DonutInputOptionKey]string{
-			entities.DonutSRTStreamID:  d.req.SRTStreamID,
-			entities.DonutSRTTranstype: "live",
-			entities.DonutSRTsmoother:  "live",
-		},
+func (d *donutEngine) Appetizer() (entities.DonutAppetizer, error) {
+	isRTMP := strings.Contains(strings.ToLower(d.req.StreamURL), "rtmp")
+	isSRT := strings.Contains(strings.ToLower(d.req.StreamURL), "srt")
+
+	if isRTMP {
+		return entities.DonutAppetizer{
+			URL: fmt.Sprintf("%s/%s", d.req.StreamURL, d.req.StreamID),
+			Options: map[entities.DonutInputOptionKey]string{
+				entities.DonutRTMPLive: "live",
+			},
+			Format: "flv",
+		}, nil
 	}
+
+	if isSRT {
+		return entities.DonutAppetizer{
+			URL:    d.req.StreamURL,
+			Format: "mpegts", // TODO: check how to get format for srt
+			Options: map[entities.DonutInputOptionKey]string{
+				entities.DonutSRTStreamID:  d.req.StreamID,
+				entities.DonutSRTTranstype: "live",
+				entities.DonutSRTsmoother:  "live",
+			},
+		}, nil
+	}
+
+	return entities.DonutAppetizer{}, entities.ErrUnsupportedStreamURL
 }

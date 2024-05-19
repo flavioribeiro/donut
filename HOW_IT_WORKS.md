@@ -8,25 +8,65 @@ sequenceDiagram
         participant browser
     end
 
-    User->>+browser: feed protocol, host, port, id, and opts
+    User->>+browser: input protocol, host, port, id, and opts
     User->>+browser: click on [Connect]
     
-    Note over server,browser: WebRTC connection setup
+    Note over donut,browser: WebRTC connection setup
     
     browser->>+browser: create WebRTC browserOffer
-    browser->>+server: POST /doSignaling {browserOffer}
+    browser->>+donut: POST /doSignaling {browserOffer}
+
+    donut->>+browser: reply WebRTC {serverOffer}
+
+    Note over donut,browser: WebRTC connection setup
 
     loop Async streaming
-        server--)streaming server: fetchMedia
-        server--)server: ffmpeg::libav demux/transcode
-        server--)browser: sendWebRTCMedia
+        donut--)streaming server: fetchMedia
+        donut--)donut: ffmpeg::libav demux/transcode
+        donut--)browser: sendWebRTCMedia
+        browser--)browser: render audio/video frames
+        User--)browser: watch media
     end
-
-    server->>+browser: reply WebRTC {serverOffer}
-
-    Note over server,browser: WebRTC connection setup
-    
-    browser--)User: render audio/video frames
 ```
 
-# Architecture
+# Core components
+
+```mermaid
+classDiagram
+    class Signaling{
+        +ServeHTTP()
+    }
+
+    class WebRTC{
+        +Setup()
+        +CreatePeerConnection()
+        +CreateTrack()
+        +CreateDataChannel()
+        +SendMediaSample(track)
+        +SendMetadata(track)
+    }
+
+    class DonutEngine{
+        +EngineFor(params)
+        +ServerIngredients()
+        +ClientIngredients()
+        +RecipeFor(server, client)
+        +Serve(donutParams)
+        +Appetizer()
+    }
+
+    class Prober {
+        +StreamInfo(appetizer)
+	    +Match(params)
+    }
+
+    class Streamer {
+        +Stream(donutParams)
+	    +Match(params)
+    }
+
+    DonutEngine *-- Signaling
+    WebRTC *-- Signaling
+    Prober *-- DonutEngine
+    Streamer *-- DonutEngine
+```

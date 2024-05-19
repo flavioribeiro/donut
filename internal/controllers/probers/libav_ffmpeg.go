@@ -2,6 +2,7 @@ package probers
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/asticode/go-astiav"
 	"github.com/asticode/go-astikit"
@@ -39,7 +40,10 @@ func NewLibAVFFmpeg(
 
 // Match returns true when the request is for an LibAVFFmpeg prober
 func (c *LibAVFFmpeg) Match(req *entities.RequestParams) bool {
-	return req.SRTHost != ""
+	isRTMP := strings.Contains(strings.ToLower(req.StreamURL), "rtmp")
+	isSRT := strings.Contains(strings.ToLower(req.StreamURL), "srt")
+
+	return isRTMP || isSRT
 }
 
 // StreamInfo connects to the SRT stream to discovery media properties.
@@ -60,7 +64,7 @@ func (c *LibAVFFmpeg) StreamInfo(req entities.DonutAppetizer) (*entities.StreamI
 	inputOptions := c.defineInputOptions(req.Options, closer)
 
 	if err := inputFormatContext.OpenInput(req.URL, inputFormat, inputOptions); err != nil {
-		return nil, fmt.Errorf("error while inputFormatContext.OpenInput: %w", err)
+		return nil, fmt.Errorf("error while inputFormatContext.OpenInput: (%s, %#v, %#v) %w", req.URL, inputFormat, inputOptions, err)
 	}
 	closer.Add(inputFormatContext.CloseInput)
 
