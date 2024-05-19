@@ -1,7 +1,6 @@
 package probers_test
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/flavioribeiro/donut/internal/controllers/probers"
@@ -43,16 +42,15 @@ func TestSrtMpegTs_StreamInfo_264(t *testing.T) {
 	ffmpeg.Start()
 
 	req := &entities.RequestParams{
-		SRTHost:     ffmpeg.Output().Host,
-		SRTPort:     uint16(ffmpeg.Output().Port),
-		SRTStreamID: "test_id",
+		StreamURL: ffmpeg.Output().StreamURL,
+		StreamID:  ffmpeg.Output().StreamID,
 	}
 
 	input := entities.DonutAppetizer{
-		URL:    fmt.Sprintf("srt://%s:%d", ffmpeg.Output().Host, uint16(ffmpeg.Output().Port)),
-		Format: "mpegts", // it'll change based on input, i.e. rmtp flv
+		URL:    ffmpeg.Output().StreamURL,
+		Format: "mpegts",
 		Options: map[entities.DonutInputOptionKey]string{
-			entities.DonutSRTStreamID:  "test_id",
+			entities.DonutSRTStreamID:  ffmpeg.Output().StreamID,
 			entities.DonutSRTTranstype: "live",
 			entities.DonutSRTsmoother:  "live",
 		},
@@ -75,16 +73,15 @@ func TestSrtMpegTs_StreamInfo_265(t *testing.T) {
 	ffmpeg.Start()
 
 	req := &entities.RequestParams{
-		SRTHost:     ffmpeg.Output().Host,
-		SRTPort:     uint16(ffmpeg.Output().Port),
-		SRTStreamID: "test_id",
+		StreamURL: ffmpeg.Output().StreamURL,
+		StreamID:  ffmpeg.Output().StreamID,
 	}
 
 	input := entities.DonutAppetizer{
-		URL:    fmt.Sprintf("srt://%s:%d", ffmpeg.Output().Host, uint16(ffmpeg.Output().Port)),
-		Format: "mpegts", // it'll change based on input, i.e. rmtp flv
+		URL:    ffmpeg.Output().StreamURL,
+		Format: "mpegts",
 		Options: map[entities.DonutInputOptionKey]string{
-			entities.DonutSRTStreamID:  "test_id",
+			entities.DonutSRTStreamID:  ffmpeg.Output().StreamID,
 			entities.DonutSRTTranstype: "live",
 			entities.DonutSRTsmoother:  "live",
 		},

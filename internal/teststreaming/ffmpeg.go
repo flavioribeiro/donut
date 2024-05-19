@@ -17,18 +17,14 @@ type FFmpeg interface {
 	Start() error
 	Stop() error
 	ExpectedStreams() []entities.Stream
-	Output() FFmpegOutput
-}
-type FFmpegOutput struct {
-	Host string
-	Port int
+	Output() entities.RequestParams
 }
 
 type testFFmpeg struct {
 	arguments       string
 	expectedStreams []entities.Stream
 	cmdExec         *exec.Cmd
-	output          FFmpegOutput
+	output          entities.RequestParams
 }
 
 func (t *testFFmpeg) Start() error {
@@ -66,7 +62,7 @@ func (t *testFFmpeg) ExpectedStreams() []entities.Stream {
 	return t.expectedStreams
 }
 
-func (t *testFFmpeg) Output() FFmpegOutput {
+func (t *testFFmpeg) Output() entities.RequestParams {
 	return t.output
 }
 
