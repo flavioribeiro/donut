@@ -1,4 +1,4 @@
-ffmpeg -hide_banner -loglevel verbose \
+ffmpeg -hide_banner -loglevel info \
     -re -f lavfi -i testsrc2=size=768x432:rate=30,format=yuv420p \
     -f lavfi -i sine=frequency=1000:sample_rate=44100 \
     -c:v libx264 -preset veryfast -tune zerolatency -profile:v baseline \

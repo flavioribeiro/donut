@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"reflect"
-	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -95,7 +93,8 @@ func (c *LibAVFFmpegStreamer) Stream(donut *entities.DonutParameters) {
 	}
 
 	// it's useful for debugging
-	astiav.SetLogLevel(astiav.LogLevelDebug)
+	// astiav.SetLogLevel(astiav.LogLevelDebug)
+	astiav.SetLogLevel(astiav.LogLevelInfo)
 	astiav.SetLogCallback(func(_ astiav.Classer, l astiav.LogLevel, fmt, msg string) {
 		c.l.Infof("ffmpeg %s: - %s", c.libAVLogToString(l), strings.TrimSpace(msg))
 	})
@@ -147,17 +146,17 @@ func (c *LibAVFFmpegStreamer) Stream(donut *entities.DonutParameters) {
 
 			s, ok := p.streams[inPkt.StreamIndex()]
 			if !ok {
-				c.l.Warnf("cannot find stream id=%d", inPkt.StreamIndex())
+				c.l.Warnf("skipping to process stream id=%d", inPkt.StreamIndex())
 				continue
 			}
 
 			if s.bsfContext != nil {
-				if err := c.applyBitStreamFilter(inPkt, s, donut); err != nil {
+				if err := c.applyBitStreamFilter(p, inPkt, s, donut); err != nil {
 					c.onError(err, donut)
 					return
 				}
 			} else {
-				if err := c.processPacket(inPkt, s, donut); err != nil {
+				if err := c.processPacket(p, inPkt, s, donut); err != nil {
 					c.onError(err, donut)
 					return
 				}
@@ -215,6 +214,9 @@ func (c *LibAVFFmpegStreamer) prepareInput(p *libAVParams, closer *astikit.Close
 			return fmt.Errorf("ffmpeg/libav: updating codec context failed %w", err)
 		}
 
+		//FFMPEG_NEW
+		s.decCodecContext.SetTimeBase(s.inputStream.TimeBase())
+
 		if is.CodecParameters().MediaType() == astiav.MediaTypeVideo {
 			s.decCodecContext.SetFramerate(p.inputFormatContext.GuessFrameRate(is, nil))
 		}
@@ -239,17 +241,11 @@ func (c *LibAVFFmpegStreamer) prepareInput(p *libAVParams, closer *astikit.Close
 	return nil
 }
 
-func functionNameFor(i interface{}) string {
-	fullName := runtime.FuncForPC(reflect.ValueOf(i).Pointer()).Name()
-	components := strings.Split(fullName, ".")
-	return components[len(components)-2]
-}
-
 func (c *LibAVFFmpegStreamer) prepareOutput(p *libAVParams, closer *astikit.Closer, donut *entities.DonutParameters) error {
 	for _, is := range p.inputFormatContext.Streams() {
 		s, ok := p.streams[is.Index()]
 		if !ok {
-			c.l.Infof("skipping stream index = %d", is.Index())
+			c.l.Infof("skipping absent stream index = %d", is.Index())
 			continue
 		}
 
@@ -308,10 +304,9 @@ func (c *LibAVFFmpegStreamer) prepareOutput(p *libAVParams, closer *astikit.Clos
 			}
 			s.encCodecContext.SetTimeBase(s.decCodecContext.TimeBase())
 
-			// supplying custom config
+			// overriding with user provide config
 			if len(donut.Recipe.Audio.CodecContextOptions) > 0 {
 				for _, opt := range donut.Recipe.Audio.CodecContextOptions {
-					c.l.Infof("overriding av codec context %s", functionNameFor(opt))
 					opt(s.encCodecContext)
 				}
 			}
@@ -327,12 +322,11 @@ func (c *LibAVFFmpegStreamer) prepareOutput(p *libAVParams, closer *astikit.Clos
 			s.encCodecContext.SetTimeBase(s.decCodecContext.TimeBase())
 			s.encCodecContext.SetHeight(s.decCodecContext.Height())
 			s.encCodecContext.SetWidth(s.decCodecContext.Width())
-			s.encCodecContext.SetFramerate(s.inputStream.AvgFrameRate())
+			// s.encCodecContext.SetFramerate(s.inputStream.AvgFrameRate())
 
-			// supplying custom config
+			// overriding with user provide config
 			if len(donut.Recipe.Video.CodecContextOptions) > 0 {
 				for _, opt := range donut.Recipe.Video.CodecContextOptions {
-					c.l.Infof("overriding av codec context %s", functionNameFor(opt))
 					opt(s.encCodecContext)
 				}
 			}
@@ -388,7 +382,7 @@ func (c *LibAVFFmpegStreamer) prepareFilters(p *libAVParams, closer *astikit.Clo
 		}
 		closer.Add(inputs.Free)
 
-		if s.decCodecContext.MediaType() == astiav.MediaTypeAudio {
+		if isAudio {
 			args = astiav.FilterArgs{
 				"channel_layout": s.decCodecContext.ChannelLayout().String(),
 				"sample_fmt":     s.decCodecContext.SampleFormat().Name(),
@@ -403,7 +397,7 @@ func (c *LibAVFFmpegStreamer) prepareFilters(p *libAVParams, closer *astikit.Clo
 			)
 		}
 
-		if s.decCodecContext.MediaType() == astiav.MediaTypeVideo {
+		if isVideo {
 			args = astiav.FilterArgs{
 				"pix_fmt":      strconv.Itoa(int(s.decCodecContext.PixelFormat())),
 				"pixel_aspect": s.decCodecContext.SampleAspectRatio().String(),
@@ -502,7 +496,7 @@ func (c *LibAVFFmpegStreamer) prepareBitStreamFilters(p *libAVParams, closer *as
 	return nil
 }
 
-func (c *LibAVFFmpegStreamer) processPacket(pkt *astiav.Packet, s *streamContext, donut *entities.DonutParameters) error {
+func (c *LibAVFFmpegStreamer) processPacket(p *libAVParams, pkt *astiav.Packet, s *streamContext, donut *entities.DonutParameters) error {
 	isVideo := s.decCodecContext.MediaType() == astiav.MediaTypeVideo
 	isAudio := s.decCodecContext.MediaType() == astiav.MediaTypeAudio
 	var currentMedia *entities.DonutMediaTask
@@ -516,11 +510,10 @@ func (c *LibAVFFmpegStreamer) processPacket(pkt *astiav.Packet, s *streamContext
 		return nil
 	}
 
-	pkt.RescaleTs(s.inputStream.TimeBase(), s.decCodecContext.TimeBase())
-
 	byPass := currentMedia.Action == entities.DonutBypass
 	if isVideo && byPass {
 		if donut.OnVideoFrame != nil {
+			pkt.RescaleTs(s.inputStream.TimeBase(), s.decCodecContext.TimeBase())
 			if err := donut.OnVideoFrame(pkt.Data(), entities.MediaFrameContext{
 				PTS:      int(pkt.Pts()),
 				DTS:      int(pkt.Dts()),
@@ -533,6 +526,7 @@ func (c *LibAVFFmpegStreamer) processPacket(pkt *astiav.Packet, s *streamContext
 	}
 	if isAudio && byPass {
 		if donut.OnAudioFrame != nil {
+			pkt.RescaleTs(s.inputStream.TimeBase(), s.decCodecContext.TimeBase())
 			if err := donut.OnAudioFrame(pkt.Data(), entities.MediaFrameContext{
 				PTS:      int(pkt.Pts()),
 				DTS:      int(pkt.Dts()),
@@ -559,14 +553,14 @@ func (c *LibAVFFmpegStreamer) processPacket(pkt *astiav.Packet, s *streamContext
 			}
 			return err
 		}
-		if err := c.filterAndEncode(s.decFrame, s, donut); err != nil {
+		if err := c.filterAndEncode(p, s.decFrame, s, donut); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (c *LibAVFFmpegStreamer) applyBitStreamFilter(pkt *astiav.Packet, s *streamContext, donut *entities.DonutParameters) error {
+func (c *LibAVFFmpegStreamer) applyBitStreamFilter(p *libAVParams, pkt *astiav.Packet, s *streamContext, donut *entities.DonutParameters) error {
 	if err := s.bsfContext.SendPacket(pkt); err != nil && !errors.Is(err, astiav.ErrEagain) {
 		return fmt.Errorf("sending bit stream packet failed: %w", err)
 	}
@@ -579,13 +573,13 @@ func (c *LibAVFFmpegStreamer) applyBitStreamFilter(pkt *astiav.Packet, s *stream
 			return fmt.Errorf("receiving bit stream packet failed: %w", err)
 		}
 
-		c.processPacket(s.bsfPacket, s, donut)
+		c.processPacket(p, s.bsfPacket, s, donut)
 		s.bsfPacket.Unref()
 	}
 	return nil
 }
 
-func (c *LibAVFFmpegStreamer) filterAndEncode(f *astiav.Frame, s *streamContext, donut *entities.DonutParameters) (err error) {
+func (c *LibAVFFmpegStreamer) filterAndEncode(p *libAVParams, f *astiav.Frame, s *streamContext, donut *entities.DonutParameters) (err error) {
 	if err = s.buffersrcContext.BuffersrcAddFrame(f, astiav.NewBuffersrcFlags(astiav.BuffersrcFlagKeepRef)); err != nil {
 		return fmt.Errorf("adding frame failed: %w", err)
 	}
@@ -601,7 +595,7 @@ func (c *LibAVFFmpegStreamer) filterAndEncode(f *astiav.Frame, s *streamContext,
 		}
 		// TODO: should we avoid setting the picture type for audio?
 		s.filterFrame.SetPictureType(astiav.PictureTypeNone)
-		if err = c.encodeFrame(s.filterFrame, s, donut); err != nil {
+		if err = c.encodeFrame(p, s.filterFrame, s, donut); err != nil {
 			err = fmt.Errorf("main: encoding and writing frame failed: %w", err)
 			return
 		}
@@ -609,12 +603,15 @@ func (c *LibAVFFmpegStreamer) filterAndEncode(f *astiav.Frame, s *streamContext,
 	return nil
 }
 
-func (c *LibAVFFmpegStreamer) encodeFrame(f *astiav.Frame, s *streamContext, donut *entities.DonutParameters) (err error) {
+func (c *LibAVFFmpegStreamer) encodeFrame(p *libAVParams, f *astiav.Frame, s *streamContext, donut *entities.DonutParameters) (err error) {
 	s.encPkt.Unref()
 
-	// when converting from aac to opus using filters, the np samples are bigger than the frame size
+	// when converting from aac to opus using filters,
+	// the np samples are bigger than the frame size
 	// to fix the error "more samples than frame size"
-	f.SetNbSamples(s.encCodecContext.FrameSize())
+	if f != nil {
+		f.SetNbSamples(s.encCodecContext.FrameSize())
+	}
 
 	if err = s.encCodecContext.SendFrame(f); err != nil {
 		return fmt.Errorf("sending frame failed: %w", err)

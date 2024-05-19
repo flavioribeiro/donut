@@ -12,11 +12,86 @@ services:
       - "8081:8081/udp"
       - "6060:6060"
     depends_on:
-      - srt
-      - rtmp
+      - haivision_srt
+      - nginx_rtmp
     links:
-      - srt
-      - rtmp
+      - haivision_srt
+      - nginx_rtmp
+
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile-dev
+    working_dir: "/app"
+    platform: "linux/amd64"
+    volumes:
+      - "./:/app/"
+    command: "bash"
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+      - "8081:8081/udp"
+      - "6060:6060"
+    depends_on:
+      - haivision_srt
+      - nginx_rtmp
+    links:
+      - haivision_srt
+      - nginx_rtmp
+
+  nginx_rtmp:
+    image: alfg/nginx-rtmp
+    ports:
+      - "1935:1935"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf.template
+    depends_on:
+      - origin_rtmp
+    links:
+      - origin_rtmp
+
+  origin_rtmp: # simulating an RTMP flv (h264/aac) live transmission
+    image: jrottenberg/ffmpeg:4.4-alpine
+    entrypoint: sh
+    command: "/scripts/ffmpeg_rtmp.sh"
+    volumes:
+      - "./scripts:/scripts"
+      - "./fonts/0xProto:/usr/share/fonts"
+    environment:
+      - RTMP_HOST=nginx_rtmp
+      - RTMP_PORT=1935
+
+  haivision_srt:
+    build:
+      context: .
+      dockerfile: Dockerfile-srt-live
+    entrypoint: sh
+    command: "./srt.sh"
+    working_dir: "/scripts"
+    volumes:
+      - "./scripts:/scripts"
+    environment:
+      - SRT_LISTENING_PORT=40052
+      - SRT_UDP_TS_INPUT_HOST=0.0.0.0
+      - SRT_UDP_TS_INPUT_PORT=1234
+    ports:
+      - "40052:40052/udp"
+    depends_on:
+      - origin_srt
+    links:
+      - origin_srt
+
+  origin_srt: # simulating an (h264/aac) mpeg-ts upd origin live transmission
+    image: jrottenberg/ffmpeg:4.4-alpine
+    entrypoint: sh
+    command: "/scripts/ffmpeg_mpegts_udp.sh"
+    volumes:
+      - "./scripts:/scripts"
+      - "./fonts/0xProto:/usr/share/fonts"      
+    environment:
+      - SRT_INPUT_HOST=haivision_srt
+      - SRT_INPUT_PORT=1234
+      - PKT_SIZE=1316
 
   test:
     build:
@@ -37,48 +112,3 @@ services:
     volumes:
       - "./:/app/"
     command: "golangci-lint run -v"
-
-  rtmp: # simulating an RTMP live transmission
-    image: jrottenberg/ffmpeg:4.4-alpine
-    entrypoint: sh
-    command: "/scripts/ffmpeg_rtmp.sh"
-    volumes:
-      - "./scripts:/scripts"
-      - "./fonts/0xProto:/usr/share/fonts"
-    environment:
-      - RTMP_HOST=0.0.0.0
-      - RTMP_PORT=1935
-    ports:
-      - "1935:1935"
-
-  srt:
-    build:
-      context: .
-      dockerfile: Dockerfile-srt-live
-    entrypoint: sh
-    command: "./srt.sh"
-    working_dir: "/scripts"
-    volumes:
-      - "./scripts:/scripts"
-    environment:
-      - SRT_LISTENING_PORT=40052
-      - SRT_UDP_TS_INPUT_HOST=0.0.0.0
-      - SRT_UDP_TS_INPUT_PORT=1234
-    ports:
-      - "40052:40052/udp"
-    depends_on:
-      - origin
-    links:
-      - origin
-
-  origin: # simulating an mpeg-ts upd origin live transmission
-    image: jrottenberg/ffmpeg:4.4-alpine
-    entrypoint: sh
-    command: "/scripts/ffmpeg_mpegts_udp.sh"
-    volumes:
-      - "./scripts:/scripts"
-      - "./fonts/0xProto:/usr/share/fonts"      
-    environment:
-      - SRT_INPUT_HOST=srt
-      - SRT_INPUT_PORT=1234
-      - PKT_SIZE=1316

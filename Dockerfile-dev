@@ -9,9 +9,10 @@ ENV LD_LIBRARY_PATH="/usr/local/lib:/usr/lib:/usr/lib/x86_64-linux-gnu/"
 ENV CGO_CFLAGS="-I/usr/local/include/"
 ENV CGO_LDFLAGS="-L/usr/local/lib"
 
+RUN apt-get clean && apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y \
+      tclsh pkg-config cmake libssl-dev build-essential git \
+    && apt-get clean
+
 ENV WD=/usr/src/app
 WORKDIR ${WD}
-
-ENV GOPROXY=direct
-
-RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.55.2

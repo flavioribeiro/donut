@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"time"
 
 	"github.com/flavioribeiro/donut/internal/controllers"
 	"github.com/flavioribeiro/donut/internal/controllers/engine"
@@ -78,11 +77,6 @@ func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) err
 		return err
 	}
 	h.l.Infof("WebRTCResponse %#v", webRTCResponse)
-
-	//TODO: remove the sleeping
-	// The simulated RTMP stream (/scripts/ffmpeg_rtmp.sh) goes down every time a client disconnects.
-	// The prober is forcing the first restart therefore it waits for 4 seconds.
-	time.Sleep(4 * time.Second)
 
 	go donutEngine.Serve(&entities.DonutParameters{
 		Cancel: cancel,

@@ -123,12 +123,8 @@ func (d *donutEngine) RecipeFor(server, client *entities.StreamInfo) (*entities.
 			Codec:  entities.Opus,
 			// TODO: create method list options per Codec
 			CodecContextOptions: []entities.LibAVOptionsCodecContext{
-				// opus specifically works under 48000 Hz
 				entities.SetSampleRate(48000),
-				// once we changed the sample rate we need to update the time base
-				entities.SetTimeBase(1, 48000),
-				// for some reason it's setting "s16"
-				// entities.SetSampleFormat("fltp"),
+				entities.SetSampleFormat("fltp"),
 			},
 		},
 	}
