@@ -114,14 +114,20 @@ func (d *donutEngine) RecipeFor(server, client *entities.StreamInfo) (*entities.
 	r := &entities.DonutRecipe{
 		Input: appetizer,
 		Video: entities.DonutMediaTask{
+			// Action:               entities.DonutTranscode,
 			Action:               entities.DonutBypass,
 			Codec:                entities.H264,
 			DonutBitStreamFilter: &entities.DonutH264AnnexB,
+			// CodecContextOptions: []entities.LibAVOptionsCodecContext{
+			// 	entities.SetBitRate(100_000),
+			// 	entities.SetBaselineProfile(),
+			// 	entities.SetGopSize(30),
+			// },
 		},
 		Audio: entities.DonutMediaTask{
-			Action: entities.DonutTranscode,
-			Codec:  entities.Opus,
-			// TODO: create method list options per Codec
+			Action:            entities.DonutTranscode,
+			Codec:             entities.Opus,
+			DonutStreamFilter: entities.AudioResamplerFilter(48000),
 			CodecContextOptions: []entities.LibAVOptionsCodecContext{
 				entities.SetSampleRate(48000),
 				entities.SetSampleFormat("fltp"),

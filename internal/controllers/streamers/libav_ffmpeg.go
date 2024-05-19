@@ -391,10 +391,11 @@ func (c *LibAVFFmpegStreamer) prepareFilters(p *libAVParams, closer *astikit.Clo
 			}
 			buffersrc = astiav.FindFilterByName("abuffer")
 			buffersink = astiav.FindFilterByName("abuffersink")
-			content = fmt.Sprintf(
-				"aresample=%s", // necessary for opus
-				strconv.Itoa(s.encCodecContext.SampleRate()),
-			)
+			if donut.Recipe.Audio.DonutStreamFilter != nil {
+				content = string(*donut.Recipe.Audio.DonutStreamFilter)
+			} else {
+				content = "anull" /* passthrough (dummy) filter for audio */
+			}
 		}
 
 		if isVideo {
@@ -406,7 +407,11 @@ func (c *LibAVFFmpegStreamer) prepareFilters(p *libAVParams, closer *astikit.Clo
 			}
 			buffersrc = astiav.FindFilterByName("buffer")
 			buffersink = astiav.FindFilterByName("buffersink")
-			content = fmt.Sprintf("format=pix_fmts=%s", s.encCodecContext.PixelFormat().Name())
+			if donut.Recipe.Video.DonutStreamFilter != nil {
+				content = string(*donut.Recipe.Video.DonutStreamFilter)
+			} else {
+				content = "null" /* passthrough (dummy) filter for video */
+			}
 		}
 
 		if buffersrc == nil {

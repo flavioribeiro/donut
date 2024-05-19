@@ -156,6 +156,13 @@ type DonutBitStreamFilter string
 
 var DonutH264AnnexB DonutBitStreamFilter = "h264_mp4toannexb"
 
+type DonutStreamFilter string
+
+func AudioResamplerFilter(sampleRate int) *DonutStreamFilter {
+	filter := DonutStreamFilter(fmt.Sprintf("aresample=%d", sampleRate))
+	return &filter
+}
+
 // TODO: split entities per domain or files avoiding name collision.
 
 // DonutMediaTask is a transformation template to apply over a media.
@@ -171,6 +178,9 @@ type DonutMediaTask struct {
 
 	// DonutBitStreamFilter is the bitstream filter
 	DonutBitStreamFilter *DonutBitStreamFilter
+
+	// DonutStreamFilter is a regular filter
+	DonutStreamFilter *DonutStreamFilter
 }
 
 type DonutInputOptionKey string
@@ -217,6 +227,24 @@ func SetSampleRate(sampleRate int) LibAVOptionsCodecContext {
 func SetTimeBase(num, den int) LibAVOptionsCodecContext {
 	return func(c *astiav.CodecContext) {
 		c.SetTimeBase(astiav.NewRational(num, den))
+	}
+}
+
+func SetBitRate(bitRate int64) LibAVOptionsCodecContext {
+	return func(c *astiav.CodecContext) {
+		c.SetBitRate(bitRate)
+	}
+}
+
+func SetBaselineProfile() LibAVOptionsCodecContext {
+	return func(c *astiav.CodecContext) {
+		c.SetProfile(astiav.ProfileH264Baseline)
+	}
+}
+
+func SetGopSize(gopSize int) LibAVOptionsCodecContext {
+	return func(c *astiav.CodecContext) {
+		c.SetGopSize(gopSize)
 	}
 }
 
