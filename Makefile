@@ -16,5 +16,8 @@ run-docker-dev:
 run-server-inside-docker:
 	go run main.go -- --enable-ice-mux=true
 
+run-srt-rtmp-streaming-alone:
+	docker compose stop && docker compose down && docker compose up nginx_rtmp haivision_srt
+
 lint:
 	docker compose stop lint && docker compose down lint && docker compose run --rm lint	
