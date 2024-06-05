@@ -6,129 +6,127 @@ import (
 	"net/http"
 
 	"github.com/flavioribeiro/donut/internal/controllers"
+	"github.com/flavioribeiro/donut/internal/controllers/engine"
 	"github.com/flavioribeiro/donut/internal/entities"
+	"github.com/flavioribeiro/donut/internal/mapper"
 	"go.uber.org/zap"
 )
 
 type SignalingHandler struct {
-	c                   *entities.Config
-	l                   *zap.SugaredLogger
-	webRTCController    *controllers.WebRTCController
-	srtController       *controllers.SRTController
-	streamingController *controllers.StreamingController
+	c                *entities.Config
+	l                *zap.SugaredLogger
+	webRTCController *controllers.WebRTCController
+	mapper           *mapper.Mapper
+	donut            *engine.DonutEngineController
 }
 
 func NewSignalingHandler(
 	c *entities.Config,
 	log *zap.SugaredLogger,
 	webRTCController *controllers.WebRTCController,
-	srtController *controllers.SRTController,
-	streamingController *controllers.StreamingController,
+	mapper *mapper.Mapper,
+	donut *engine.DonutEngineController,
 ) *SignalingHandler {
 	return &SignalingHandler{
-		c:                   c,
-		l:                   log,
-		webRTCController:    webRTCController,
-		srtController:       srtController,
-		streamingController: streamingController,
+		c:                c,
+		l:                log,
+		webRTCController: webRTCController,
+		mapper:           mapper,
+		donut:            donut,
 	}
 }
 
 func (h *SignalingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
-	if r.Method != http.MethodPost {
-		h.l.Errorw("unexpected method")
-		return entities.ErrHTTPPostOnly
-	}
-
-	params := entities.RequestParams{}
-	if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
-		h.l.Errorw("error while decoding request params json",
-			"error", err,
-		)
+	params, err := h.createAndValidateParams(r)
+	if err != nil {
 		return err
 	}
-	if err := params.Valid(); err != nil {
-		h.l.Errorw("invalid params",
-			"error", err,
-		)
+	h.l.Infof("RequestParams %s", params.String())
+
+	donutEngine, err := h.donut.EngineFor(&params)
+	if err != nil {
 		return err
 	}
+	h.l.Infof("DonutEngine %#v", donutEngine)
 
+	// server side media info
+	serverStreamInfo, err := donutEngine.ServerIngredients()
+	if err != nil {
+		return err
+	}
+	h.l.Infof("ServerIngredients %#v", serverStreamInfo)
+
+	// client side media support
+	clientStreamInfo, err := donutEngine.ClientIngredients()
+	if err != nil {
+		return err
+	}
+	h.l.Infof("ClientIngredients %#v", clientStreamInfo)
+
+	donutRecipe, err := donutEngine.RecipeFor(serverStreamInfo, clientStreamInfo)
+	if err != nil {
+		return err
+	}
+	h.l.Infof("DonutRecipe %#v", donutRecipe)
+
+	// We can't defer calling cancel here because it'll live alongside the stream.
 	ctx, cancel := context.WithCancel(context.Background())
-
-	peer, err := h.webRTCController.CreatePeerConnection(cancel)
+	webRTCResponse, err := h.webRTCController.Setup(cancel, donutRecipe, params)
 	if err != nil {
-		h.l.Errorw("error while setting up web rtc connection",
-			"error", err,
-		)
+		cancel()
 		return err
 	}
+	h.l.Infof("WebRTCResponse %#v", webRTCResponse)
 
-	// TODO: create tracks according with SRT available streams
-	// Create a video track
-	videoTrack, err := h.webRTCController.CreateTrack(
-		peer,
-		entities.Track{
-			Type: entities.H264,
-		}, "video", params.SRTStreamID,
-	)
-	if err != nil {
-		h.l.Errorw("error while creating a web rtc track",
-			"error", err,
-		)
-		return err
-	}
+	go donutEngine.Serve(&entities.DonutParameters{
+		Cancel: cancel,
+		Ctx:    ctx,
 
-	metadataSender, err := h.webRTCController.CreateDataChannel(peer, entities.MetadataChannelID)
-	if err != nil {
-		h.l.Errorw("error while creating a web rtc data channel",
-			"error", err,
-		)
-		return err
-	}
+		Recipe: *donutRecipe,
 
-	if err = h.webRTCController.SetRemoteDescription(peer, params.Offer); err != nil {
-		h.l.Errorw("error while setting a remote web rtc description",
-			"error", err,
-		)
-		return err
-	}
-
-	localDescription, err := h.webRTCController.GatheringWebRTC(peer)
-	if err != nil {
-		h.l.Errorw("error while preparing a local web rtc description",
-			"error", err,
-		)
-		return err
-	}
-
-	srtConnection, err := h.srtController.Connect(cancel, params)
-	if err != nil {
-		h.l.Errorw("error while connecting to an srt server",
-			"error", err,
-		)
-		return err
-	}
-
-	go h.streamingController.Stream(&entities.StreamParameters{
-		Cancel:        cancel,
-		Ctx:           ctx,
-		WebRTCConn:    peer,
-		SRTConnection: srtConnection,
-		VideoTrack:    videoTrack,
-		MetadataTrack: metadataSender,
+		OnClose: func() {
+			cancel()
+			webRTCResponse.Connection.Close()
+		},
+		OnError: func(err error) {
+			h.l.Errorw("error while streaming", "error", err)
+		},
+		OnStream: func(st *entities.Stream) error {
+			return h.webRTCController.SendMetadata(webRTCResponse.Data, st)
+		},
+		OnVideoFrame: func(data []byte, c entities.MediaFrameContext) error {
+			return h.webRTCController.SendMediaSample(webRTCResponse.Video, data, c)
+		},
+		OnAudioFrame: func(data []byte, c entities.MediaFrameContext) error {
+			return h.webRTCController.SendMediaSample(webRTCResponse.Audio, data, c)
+		},
 	})
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 
-	err = json.NewEncoder(w).Encode(*localDescription)
+	err = json.NewEncoder(w).Encode(*webRTCResponse.LocalSDP)
 	if err != nil {
-		h.l.Errorw("error while encoding a local web rtc description",
-			"error", err,
-		)
+		cancel()
 		return err
 	}
+	h.l.Infof("webRTCResponse %#v", webRTCResponse)
 
 	return nil
+}
+
+func (h *SignalingHandler) createAndValidateParams(r *http.Request) (entities.RequestParams, error) {
+	if r.Method != http.MethodPost {
+		return entities.RequestParams{}, entities.ErrHTTPPostOnly
+	}
+
+	params := entities.RequestParams{}
+	if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
+		return entities.RequestParams{}, err
+	}
+	if err := params.Valid(); err != nil {
+		return entities.RequestParams{}, err
+	}
+
+	return params, nil
 }

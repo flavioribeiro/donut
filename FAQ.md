@@ -1,4 +1,4 @@
-# FAQ
+# FAQ & Dev Troubleshooting
 
 ## I can't connect two tabs or browser at the same for the SRT
 
@@ -48,11 +48,38 @@ clang: error: linker command failed with exit code 1 (use -v to see invocation)
 You can try to use the [docker-compose](/README.md#run-using-docker-compose), but if you want to run it locally you must provide path to the linker.
 
 ```bash
-# Find where the headers and libraries files are located at. If you can't find, install them with brew or apt-get.
-# Feel free to replace the path after the find to roo[/] or any other suspicious place.
-sudo find /opt/homebrew/ -name srt.h
-sudo find /opt/ -name libsrt.a # libsrt.so for linux
+#  For MacOS
+CGO_LDFLAGS="-L$(brew --prefix srt)/lib -lsrt" CGO_CFLAGS="-I$(brew --prefix srt)/include/" go run main.go
+```
 
-# Add the required flags so the compiler/linker can find the needed files.
-CGO_LDFLAGS="-L/opt/homebrew/Cellar/srt/1.5.3/lib -lsrt" CGO_CFLAGS="-I/opt/homebrew//Cellar/srt/1.5.3/include/" go run main.go helpers.go
+## If you're seeing the error "At least one invalid signature was encountered ... GPG error: http://security." when running the app
+
+If you see the error "At least one invalid signature was encountered." when running `make run` Or "failed to copy files: userspace copy failed: write":
+
+```
+3.723 W: GPG error: http://deb.debian.org/debian bookworm InRelease: At least one invalid signature was encountered.
+3.723 E: The repository 'http://deb.debian.org/debian bookworm InRelease' is not signed.
+3.723 W: GPG error: http://deb.debian.org/debian bookworm-updates InRelease: At least one invalid signature was encountered.
+3.723 E: The repository 'http://deb.debian.org/debian bookworm-updates InRelease' is not signed.
+3.723 W: GPG error: http://deb.debian.org/debian-security bookworm-security InRelease: At least one invalid signature was encountered.
+3.723 E: The repository 'http://deb.debian.org/debian-security bookworm-security InRelease' is not signed.
+3.723 W: An error occurred during the signature verification. The repository is not updated and the previous index files will be used. GPG error: http://archive.ubuntu.com/ubuntu focal InRelease: At least one invalid signature was encountered.
+3.723 W: An error occurred during the signature verification. The repository is not updated and the previous index files will be used. GPG error: http://security.ubuntu.com/ubuntu focal-security InRelease: At least one invalid signature was encountered.
+```
+
+```
+ => CANCELED [test stage-1 6/6] RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.55.2                                     4.4s
+ => ERROR [app stage-1 6/8] COPY . ./donut                                                                                                                                                               4.1s
+------
+ > [app stage-1 6/8] COPY . ./donut:
+------
+failed to solve: failed to copy files: userspace copy failed: write /var/lib/docker/overlay2/30zm6uywrtfed4z4wfzbf1ema/merged/usr/src/app/donut/tmp/n5.1.2/src/tests/reference.pnm: no space left on device
+make: *** [run] Error 17
+```
+
+Please try to run:
+
+```
+# PLEASE be aware that the following command will erase all your docker images, containers, volumes, etc.
+make clean-docker
 ```

@@ -2,15 +2,13 @@
 window.metadataMessages = {}
 
 window.startSession = () => {
-  let srtHost = document.getElementById('srt-host').value;
-  let srtPort = document.getElementById('srt-port').value;
-  let srtStreamId = document.getElementById('srt-stream-id').value;
+  let streamURL = document.getElementById('stream-url').value;
+  let streamID = document.getElementById('stream-id').value;
 
   setupWebRTC((pc, offer) => {
     let srtFullAddress = JSON.stringify({
-      "srtHost": srtHost,
-      "srtPort": srtPort,
-      "srtStreamId": srtStreamId,
+      "streamURL": streamURL,
+      "streamID": streamID,
       offer
     });
 
@@ -31,7 +29,12 @@ const setupWebRTC = (setRemoteSDPfn) => {
   log("setting up web rtc");
   const pc = new RTCPeerConnection({
     iceServers: [{
-      urls: 'stun:stun.l.google.com:19302'
+      urls: [
+        'stun:stun.l.google.com:19302',
+        'stun:stun1.l.google.com:19302',
+        'stun:stun2.l.google.com:19302',
+        'stun:stun4.l.google.com:19302'
+      ]
     }]
   });
 
@@ -47,6 +50,10 @@ const setupWebRTC = (setRemoteSDPfn) => {
   // with auto play.
   pc.ontrack = function (event) {
     log("ontrack : " + event.track.kind + " label " + event.track.label);
+    // it only creates a video tag element
+    if (event.track.kind !== "video") {
+      return
+    }
 
     const el = document.createElement(event.track.kind);
     el.srcObject = event.streams[0];
@@ -131,8 +138,17 @@ const formattedNow = () => {
 
 const log = (msg, level = "info") => {
   const el = document.createElement("p")
-  if (level === "error") {
+
+  if (typeof(msg) !== "string") {
+    orig = msg
+    msg = "unknown log msg type " + typeof(msg)
+    msg = msg + " [" + orig + "]"
+    level = "error"
+  }
+
+  if (level === "error" || msg.includes("failed") || msg.includes("error")) {
     el.style = "color: red;background-color: yellow;";
+    level = "error"
   }
 
   el.innerText = "[[" + level.toUpperCase().padEnd(5, ' ') + "]] " + formattedNow() + " : " + msg

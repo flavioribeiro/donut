@@ -1,23 +1,23 @@
-package controllers
+package streammiddlewares
 
 import (
 	"encoding/json"
 
-	"github.com/asticode/go-astits"
+	"github.com/flavioribeiro/donut/internal/controllers"
 	"github.com/flavioribeiro/donut/internal/entities"
 	gocaption "github.com/szatmary/gocaption"
 )
 
-type EIA608Reader struct {
+type eia608Reader struct {
 	frame gocaption.EIA608Frame
 }
 
-func NewEIA608Reader() (r *EIA608Reader) {
-	return &EIA608Reader{}
+func newEIA608Reader() (r *eia608Reader) {
+	return &eia608Reader{}
 }
 
-func (r *EIA608Reader) Parse(PES *astits.PESData) (string, error) {
-	nalus, err := ParseNALUs(PES.Data)
+func (r *eia608Reader) parse(data []byte) (string, error) {
+	nalus, err := controllers.ParseNALUs(data)
 	if err != nil {
 		return "", err
 	}
@@ -47,9 +47,10 @@ func (r *EIA608Reader) Parse(PES *astits.PESData) (string, error) {
 	return "", nil
 }
 
-func BuildCaptionsMessage(pts *astits.ClockReference, captions string) (string, error) {
+// TODO: port to mappers
+func (r *eia608Reader) buildCaptionsMessage(pts int64, captions string) (string, error) {
 	cue := entities.Cue{
-		StartTime: pts.Base,
+		StartTime: pts,
 		Text:      captions,
 		Type:      "captions",
 	}
