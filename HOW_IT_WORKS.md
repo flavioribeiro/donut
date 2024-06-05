@@ -1,26 +1,26 @@
 # INTRODUCTION
 
 ```golang
-// build the a donut engine for user's input (ie: srt://server)
-donutEngine := h.donut.EngineFor(reqParams)
-// fetches the server-side stream info (codec, ...)
+// It builds an engine based on user inputs
+// {url: url, id: id, sdp: webRTCOffer}
+donutEngine := donut.EngineFor(reqParams)
+// It fetches the server-side (streaming server) stream info (codec, ...)
 serverStreamInfo := donutEngine.ServerIngredients(reqParams)
-// gets the client side media support (codec, ...)
+// It gets the client side (browser) media support (codec, ...)
 clientStreamInfo := donutEngine.ClientIngredients(reqParams)
-// creates the necessary recipe (by pass, transcoding from A to B, etc)
+// Given the client's restrictions and the server's availability, it builds the right recipe.
 donutRecipe := donutEngine.RecipeFor(reqParams, serverStreamInfo, clientStreamInfo)
 
-// serve asynchronously the server stream to the client web rtc
-go donutEngine.Serve(&entities.DonutParameters{
-	Recipe: *donutRecipe,
-	OnVideoFrame: func(data []byte, c entities.MediaFrameContext) error {
-		return webRTC.SendMediaSample(VIDEO_CHANNEL, data, c)
+// It streams the media from the backend server to the client while there's data.
+go donutEngine.Serve(DonutParameters{
+	Recipe: donutRecipe,
+	OnVideoFrame: func(data []byte, c MediaFrameContext) error {
+		return SendMediaSample(VIDEO_TYPE, data, c)
 	},
-	OnAudioFrame: func(data []byte, c entities.MediaFrameContext) error {
-		return webRTC.SendMediaSample(AUDIO_CHANNEL, data, c)
+	OnAudioFrame: func(data []byte, c MediaFrameContext) error {
+		return SendMediaSample(AUDIO_TYPE, data, c)
 	},
 })
-
 ```
 
 # DATA FLOW DIAGRAM
