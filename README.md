@@ -70,10 +70,6 @@ Open [http://localhost:8080/demo](http://localhost:8080/demo). You will see two 
 
 ![donut docker-compose setup](/.github/docker-compose-donut-setup.webp "donut docker-compose setup")
 
-### How it works
-
-Please check the [How it works](/HOW_IT_WORKS.md) section.
-
 ### FAQ
 
 Please check the [FAQ](/FAQ.md) if you're facing any trouble.
