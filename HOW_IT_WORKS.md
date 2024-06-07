@@ -29,7 +29,7 @@ go donutEngine.Serve(DonutParameters{
 sequenceDiagram
     actor User
 
-    box Navy
+    box Cornsilk
         participant browser
     end
 
