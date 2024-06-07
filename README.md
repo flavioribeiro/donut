@@ -9,7 +9,7 @@
 sequenceDiagram
     actor User
 
-    box Navy
+    box Cornsilk
         participant browser
     end
 
